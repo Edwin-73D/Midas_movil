@@ -44,3 +44,4 @@ app-example
 
 # markdown files
 *.md
+!README.md
