@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { usePresupuestoViewModel } from "../../modules/presupuesto/PresupuestoViewModel";
 
@@ -17,7 +17,7 @@ export default function PresupuestoScreen() {
 
   return (
     
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#1E1B0F" }}>
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Your Monthly Split</Text>
 
@@ -29,17 +29,40 @@ export default function PresupuestoScreen() {
         style={styles.input}
       />
 
-      <Button title="50/30/20" onPress={() => setMetodo("50-30-20")} />
-      <Button title="60/20/20" onPress={() => setMetodo("60-20-20")} />
+      <View style={styles.buttonContainer}>
 
-      <Button
-        title="Generar presupuesto"
-        onPress={() => {
-          const valor = parseFloat(ingreso);
-          if (isNaN(valor)) return;
-          generarPresupuesto(valor, metodo);
-        }}
-      />
+  <TouchableOpacity
+    style={[
+      styles.button,
+      metodo === "50-30-20" && styles.buttonActive
+    ]}
+    onPress={() => setMetodo("50-30-20")}
+  >
+    <Text style={styles.buttonText}>50 / 30 / 20</Text>
+  </TouchableOpacity>
+
+  <TouchableOpacity
+    style={[
+      styles.button,
+      metodo === "60-20-20" && styles.buttonActive
+    ]}
+    onPress={() => setMetodo("60-20-20")}
+  >
+    <Text style={styles.buttonText}>60 / 20 / 20</Text>
+  </TouchableOpacity>
+
+  <TouchableOpacity
+    style={styles.generateButton}
+    onPress={() => {
+      const valor = parseFloat(ingreso);
+      if (isNaN(valor)) return;
+      generarPresupuesto(valor, metodo);
+    }}
+  >
+    <Text style={styles.generateText}>Generar presupuesto</Text>
+  </TouchableOpacity>
+
+</View>
 
       <Text style={styles.subtitle}>
         Based on your income, here is how your budget is allocated according to the 50/30/20 rule.
@@ -100,17 +123,9 @@ const CategoriaCard = ({ categoria }: any) => {
 
 const styles = StyleSheet.create({
 
-  input: {
-  backgroundColor: "#2A2618",
-  color: "white",
-  padding: 10,
-  borderRadius: 10,
-  marginBottom: 10,
-},
-
   container: {
     flex: 1,
-    backgroundColor: "#1E1B0F",
+    backgroundColor: "#222222",
     padding: 20,
   },
 
@@ -124,6 +139,48 @@ const styles = StyleSheet.create({
   subtitle: {
     color: "#aaa",
     marginBottom: 20,
+  },
+
+  input: {
+    backgroundColor: "#1E1B0F",
+    color: "white",
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+
+  buttonContainer: {
+    marginVertical: 15,
+  },
+
+  button: {
+    backgroundColor: "#1E1B0F",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 10, // reemplaza gap (más compatible)
+  },
+
+  buttonActive: {
+    backgroundColor: "#FFD700",
+  },
+
+  buttonText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+
+  generateButton: {
+    backgroundColor: "#FFD700",
+    padding: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  generateText: {
+    color: "#1E1B0F",
+    fontWeight: "bold",
   },
 
   totalContainer: {
