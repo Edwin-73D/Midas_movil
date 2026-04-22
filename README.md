@@ -44,3 +44,18 @@ npm start -- --tunnel
 ```
 
 Si te pide instalar `@expo/ngrok`, acepta.
+
+## Base de datos
+
+La app usa **SQLite** mediante `expo-sqlite` con **Drizzle ORM** para type-safety y gestión de esquema.
+
+- La base de datos se crea automáticamente al primer arranque de la app — no requiere ningún paso manual.
+- El esquema está definido en `db/schema.ts` y el cliente (con WAL mode y foreign keys activos) en `db/client.ts`.
+- Para usar la DB en cualquier componente: `import { db } from '@/db/client'`.
+
+### Comandos útiles (solo desarrollo)
+
+```bash
+npm run db:generate  # Genera archivos de migración SQL al modificar el esquema
+npm run db:studio    # Abre Drizzle Studio: panel visual para inspeccionar la BD
+```

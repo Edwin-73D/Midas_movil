@@ -1,25 +1,44 @@
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { MidasColors } from '@/constants/theme';
+
+import { BalanceCard } from './components/BalanceCard';
+import { BudgetSection } from './components/BudgetSection';
+import { HomeHeader } from './components/HomeHeader';
+import { InsightCard } from './components/InsightCard';
+import { TransactionList } from './components/TransactionList';
 
 export default function HomeScreen() {
   return (
-    <ThemedView style={styles.container}>
-      <View style={styles.header}>
-        <ThemedText type="title">Inicio</ThemedText>
-      </View>
-    </ThemedView>
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <HomeHeader />
+        <BalanceCard />
+        <InsightCard tip="You're spending 5% more on dining this month compared to your average. Consider cooking at home this weekend!" />
+        <BudgetSection />
+        <TransactionList />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
-    paddingTop: 60,
-    paddingHorizontal: 20,
+    backgroundColor: MidasColors.appBackground,
   },
-  header: {
-    marginBottom: 24,
+  scroll: {
+    flex: 1,
+    backgroundColor: MidasColors.appBackground,
+  },
+  content: {
+    paddingHorizontal: 20,
+    paddingBottom: 110,
+    gap: 20,
   },
 });
