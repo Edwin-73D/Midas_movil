@@ -1,40 +1,45 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Button, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const categoriasMock = [
-  {
-    id: 1,
-    nombre: "Needs",
-    porcentaje: 50,
-    monto_esperado: 2125,
-    monto_real: 1200,
-  },
-  {
-    id: 2,
-    nombre: "Wants",
-    porcentaje: 30,
-    monto_esperado: 1275,
-    monto_real: 400,
-  },
-  {
-    id: 3,
-    nombre: "Savings & Debt",
-    porcentaje: 20,
-    monto_esperado: 850,
-    monto_real: 850,
-  },
-];
+import { usePresupuestoViewModel } from "../../modules/presupuesto/PresupuestoViewModel";
 
 export default function PresupuestoScreen() {
-  const total = categoriasMock.reduce(
+
+  const { categorias, generarPresupuesto } = usePresupuestoViewModel();
+
+  const [ingreso, setIngreso] = useState("");
+  const [metodo, setMetodo] = useState("50-30-20");
+
+  const total = categorias.reduce(
     (acc, cat) => acc + cat.monto_esperado,
     0
   );
 
   return (
+    
     <SafeAreaView style={{ flex: 1 }}>
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Your Monthly Split</Text>
+
+      <TextInput
+        placeholder="Ingresa tu ingreso mensual"
+        keyboardType="numeric"
+        value={ingreso}
+        onChangeText={setIngreso}
+        style={styles.input}
+      />
+
+      <Button title="50/30/20" onPress={() => setMetodo("50-30-20")} />
+      <Button title="60/20/20" onPress={() => setMetodo("60-20-20")} />
+
+      <Button
+        title="Generar presupuesto"
+        onPress={() => {
+          const valor = parseFloat(ingreso);
+          if (isNaN(valor)) return;
+          generarPresupuesto(valor, metodo);
+        }}
+      />
 
       <Text style={styles.subtitle}>
         Based on your income, here is how your budget is allocated according to the 50/30/20 rule.
@@ -47,9 +52,9 @@ export default function PresupuestoScreen() {
       </View>
 
       {/* LISTA */}
-      {categoriasMock.map((cat) => (
-        <CategoriaCard key={cat.id} categoria={cat} />
-      ))}
+      {categorias.map((cat) => (
+  <CategoriaCard key={cat.ID} categoria={cat} />
+))}
       </ScrollView>
 </SafeAreaView>
   );
@@ -94,6 +99,15 @@ const CategoriaCard = ({ categoria }: any) => {
 };
 
 const styles = StyleSheet.create({
+
+  input: {
+  backgroundColor: "#2A2618",
+  color: "white",
+  padding: 10,
+  borderRadius: 10,
+  marginBottom: 10,
+},
+
   container: {
     flex: 1,
     backgroundColor: "#1E1B0F",
