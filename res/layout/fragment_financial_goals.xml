@@ -1,0 +1,50 @@
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:background="#121212"
+    android:padding="16dp"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- BOTÓN -->
+    <Button
+        android:id="@+id/btnAddGoal"
+        android:text="+ Create New Goal"
+        android:backgroundTint="#FFD600"
+        android:textColor="#000"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <!-- RESUMEN -->
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_marginTop="16dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/tvTotal"
+            android:textColor="#FFD600"
+            android:textSize="18sp"
+            android:layout_weight="1"
+            android:text="Total: $0"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"/>
+
+        <TextView
+            android:id="@+id/tvCount"
+            android:textColor="#FFF"
+            android:text="0 metas"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+    </LinearLayout>
+
+    <!-- LISTA -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerGoals"
+        android:layout_marginTop="16dp"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+</LinearLayout>
