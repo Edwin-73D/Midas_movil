@@ -17,8 +17,8 @@ export default function PresupuestoScreen() {
 
   return (
     
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#1E1B0F" }}>
-    <ScrollView style={styles.container}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0F0F0F" }}>
+    <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Your Monthly Split</Text>
 
       <TextInput
@@ -124,10 +124,11 @@ const CategoriaCard = ({ categoria }: any) => {
 const styles = StyleSheet.create({
 
   container: {
-    flex: 1,
-    backgroundColor: "#222222",
     padding: 20,
-  },
+    paddingBottom: 40, // evita que se corte abajo
+    flex: 1,
+    backgroundColor: "#0F0F0F",
+   },
 
   title: {
     color: "white",
@@ -199,7 +200,7 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: "#2A2618",
+    backgroundColor: "#222222",
     borderRadius: 15,
     padding: 15,
     marginBottom: 15,
