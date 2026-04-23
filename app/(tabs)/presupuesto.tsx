@@ -1,11 +1,20 @@
-import { useState } from "react";
+
+import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { usePresupuestoViewModel } from "../../modules/presupuesto/PresupuestoViewModel";
 
 export default function PresupuestoScreen() {
 
-  const { categorias, generarPresupuesto } = usePresupuestoViewModel();
+  const { categorias, generarPresupuesto, cargarCategorias } = usePresupuestoViewModel();
+
+    useEffect(() => {
+      const interval = setInterval(() => {
+        cargarCategorias();
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }, []);
 
   const [ingreso, setIngreso] = useState("");
   const [metodo, setMetodo] = useState("50-30-20");
@@ -124,9 +133,9 @@ const CategoriaCard = ({ categoria }: any) => {
 const styles = StyleSheet.create({
 
   container: {
+    flexGrow: 1,
     padding: 20,
     paddingBottom: 40, // evita que se corte abajo
-    flex: 1,
     backgroundColor: "#0F0F0F",
    },
 

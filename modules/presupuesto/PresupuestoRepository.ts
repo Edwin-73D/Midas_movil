@@ -50,3 +50,16 @@ export const PresupuestoRepository = {
     }
   },
 };
+
+export const actualizarMontoReal = async (categoriaId: number, monto: number) => {
+  try {
+    await db.runAsync(
+      `UPDATE Categoria
+       SET monto_real = monto_real + ?
+       WHERE ID = ?`,
+      [monto, categoriaId]
+    );
+  } catch (error) {
+    console.log("Error actualizando monto_real:", error);
+  }
+};

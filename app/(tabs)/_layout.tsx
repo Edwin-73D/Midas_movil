@@ -1,4 +1,6 @@
 import { initDB } from "@/modules/database/database";
+import { PresupuestoRepository } from "@/modules/presupuesto/PresupuestoRepository";
+import { usePresupuestoViewModel } from "@/modules/presupuesto/PresupuestoViewModel";
 import { Tabs } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -9,12 +11,18 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MidasColors } from '@/constants/theme';
 import { AddTransactionModal } from '@/modules/home/components/AddTransactionModal';
 
+
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const [modalVisible, setModalVisible] = useState(false);
 
+  const { agregarGasto, categorias } = usePresupuestoViewModel();
+
     useEffect(() => {
     initDB();
+
+    PresupuestoRepository.limpiarCategorias();
+
     }, []);
 
   return (
@@ -68,9 +76,14 @@ export default function TabLayout() {
       <AddTransactionModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        onSubmit={(tx) => {
-          console.log('Nueva transacción:', tx);
+        onSubmit={async (tx) => {
+          if (categorias.length > 0) {
+            await agregarGasto(categorias[0].ID, tx.amount);
+          }
+
           setModalVisible(false);
+
+          // 🔥 fuerza re-render cambiando de tab (hack simple)
         }}
       />
     </View>

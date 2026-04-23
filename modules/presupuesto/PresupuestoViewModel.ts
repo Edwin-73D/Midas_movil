@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PresupuestoRepository } from "./PresupuestoRepository";
+import { actualizarMontoReal, PresupuestoRepository } from "./PresupuestoRepository";
 
 export const usePresupuestoViewModel = () => {
   const [categorias, setCategorias] = useState<any[]>([]);
@@ -8,9 +8,19 @@ export const usePresupuestoViewModel = () => {
     cargarCategorias();
   }, []);
 
-  const cargarCategorias = () => {
-    const data = PresupuestoRepository.getCategorias();
+  const cargarCategorias = async () => {
+    const data = await PresupuestoRepository.getCategorias();
     setCategorias(data);
+  };
+
+  const agregarGasto = async (categoriaId: number, monto: number) => {
+    console.log("🔥 ENTRANDO A agregarGasto");
+
+    await actualizarMontoReal(categoriaId, monto);
+
+    console.log("🔥 DESPUÉS DE actualizarMontoReal");
+
+    await cargarCategorias();
   };
 
   const generarPresupuesto = (ingreso: number, metodo: string) => {
@@ -49,5 +59,7 @@ export const usePresupuestoViewModel = () => {
     cargarCategorias();
   };
 
-  return { categorias, generarPresupuesto };
+  return { categorias, generarPresupuesto, agregarGasto, cargarCategorias };
+
+  
 };
