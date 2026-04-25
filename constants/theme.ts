@@ -27,6 +27,21 @@ export const Colors = {
   },
 };
 
+export const MidasColors = {
+  appBackground:     '#0F0F0F',
+  cardBackground:    '#1A1A1A',
+  insightBackground: '#2A3318',
+  gold:              '#C8A84B',
+  textPrimary:       '#FFFFFF',
+  textSecondary:     '#9BA1A6',
+  positive:          '#4CAF50',
+  needsColor:        '#F5A623',
+  wantsColor:        '#9B59B6',
+  savingsColor:      '#4CAF50',
+  tabBarBackground:  '#111111',
+  tabBarInactive:    '#555555',
+};
+
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */
