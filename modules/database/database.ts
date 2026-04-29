@@ -22,4 +22,6 @@ export const initDB = () => {
   }
 };
 
+initDB();
+
 export default db;
