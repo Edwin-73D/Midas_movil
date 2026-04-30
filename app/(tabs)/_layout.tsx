@@ -1,4 +1,3 @@
-import { initDB } from "@/modules/database/database";
 import { PresupuestoRepository } from "@/modules/presupuesto/PresupuestoRepository";
 import { usePresupuestoViewModel } from "@/modules/presupuesto/PresupuestoViewModel";
 import { Tabs } from 'expo-router';
@@ -18,12 +17,9 @@ export default function TabLayout() {
 
   const { agregarGasto, categorias } = usePresupuestoViewModel();
 
-    useEffect(() => {
-    initDB();
-
+  useEffect(() => {
     PresupuestoRepository.limpiarCategorias();
-
-    }, []);
+  }, []);
 
   return (
     <View style={styles.wrapper}>
