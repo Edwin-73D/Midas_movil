@@ -19,7 +19,7 @@ type Category = 'Needs' | 'Wants' | 'Savings';
 interface NewTransaction {
   type: TransactionType;
   amount: number;
-  category: Category;
+  category: Category | null;
   description: string;
 }
 
@@ -41,10 +41,10 @@ export function AddTransactionModal({ visible, onClose, onSubmit }: Props) {
   const [category, setCategory] = useState<Category | null>(null);
   const [description, setDescription] = useState('');
 
-  const isValid = parseFloat(amount) > 0 && category !== null;
+  const isValid = parseFloat(amount) > 0 && (type === 'income' || category !== null);
 
   function handleSubmit() {
-    if (!isValid || !category) return;
+    if (!isValid) return;
     onSubmit({ type, amount: parseFloat(amount), category, description });
     resetForm();
     onClose();
@@ -87,7 +87,7 @@ export function AddTransactionModal({ visible, onClose, onSubmit }: Props) {
                 styles.typeButton,
                 type === 'income' && { backgroundColor: MidasColors.positive },
               ]}
-              onPress={() => setType('income')}
+              onPress={() => { setType('income'); setCategory(null); }}
               activeOpacity={0.8}
             >
               <Text style={[styles.typeLabel, type === 'income' && styles.typeLabelActive]}>
@@ -103,7 +103,7 @@ export function AddTransactionModal({ visible, onClose, onSubmit }: Props) {
               activeOpacity={0.8}
             >
               <Text style={[styles.typeLabel, type === 'expense' && styles.typeLabelActive]}>
-                Egreso
+                Gasto
               </Text>
             </TouchableOpacity>
           </View>
@@ -122,28 +122,32 @@ export function AddTransactionModal({ visible, onClose, onSubmit }: Props) {
             />
           </View>
 
-          {/* Category */}
-          <Text style={styles.label}>Categoría</Text>
-          <View style={styles.chipRow}>
-            {CATEGORIES.map((cat) => {
-              const selected = category === cat.label;
-              return (
-                <TouchableOpacity
-                  key={cat.label}
-                  style={[
-                    styles.chip,
-                    selected && { backgroundColor: cat.color, borderColor: cat.color },
-                  ]}
-                  onPress={() => setCategory(cat.label)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>
-                    {cat.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          {/* Category — solo visible para Gasto */}
+          {type === 'expense' && (
+            <>
+              <Text style={styles.label}>Categoría</Text>
+              <View style={styles.chipRow}>
+                {CATEGORIES.map((cat) => {
+                  const selected = category === cat.label;
+                  return (
+                    <TouchableOpacity
+                      key={cat.label}
+                      style={[
+                        styles.chip,
+                        selected && { backgroundColor: cat.color, borderColor: cat.color },
+                      ]}
+                      onPress={() => setCategory(cat.label)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>
+                        {cat.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
 
           {/* Description */}
           <Text style={styles.label}>Descripción</Text>

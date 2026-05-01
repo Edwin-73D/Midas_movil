@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MidasColors } from '@/constants/theme';
 import { TransaccionRepository, TransaccionRow } from '@/modules/transacciones/TransaccionRepository';
 import { transactionEvents } from '@/modules/transacciones/transactionEvents';
@@ -22,10 +21,6 @@ function formatAmount(amount: number): string {
   return amount >= 0 ? `+$${abs}` : `-$${abs}`;
 }
 
-function getIconConfig(amount: number): { iconName: 'laptopcomputer' | 'cart.fill'; iconBg: string } {
-  if (amount >= 0) return { iconName: 'laptopcomputer', iconBg: '#0F1A2A' };
-  return { iconName: 'cart.fill', iconBg: '#0F2A1A' };
-}
 
 export function TransactionList() {
   const [transactions, setTransactions] = useState<TransaccionRow[]>([]);
@@ -48,17 +43,12 @@ export function TransactionList() {
           <Text style={[styles.txDate, { paddingVertical: 14 }]}>No hay transacciones aún.</Text>
         ) : (
           transactions.map((tx, index) => {
-            const { iconName, iconBg } = getIconConfig(tx.valor_transaccion);
             const displayName = tx.nombre || tx.descripcion || 'Transacción';
             return (
               <View
                 key={tx.ID}
                 style={[styles.row, index < transactions.length - 1 && styles.rowBorder]}
               >
-                <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
-                  <IconSymbol name={iconName} size={22} color={MidasColors.textSecondary} />
-                </View>
-
                 <View style={styles.info}>
                   <Text style={styles.txName}>{displayName}</Text>
                   <Text style={styles.txDate}>{formatDateTime(tx.fecha_hora)}</Text>
@@ -97,13 +87,6 @@ const styles = StyleSheet.create({
   rowBorder: {
     borderBottomWidth: 1,
     borderBottomColor: '#2A2A2A',
-  },
-  iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   info: {
     flex: 1,

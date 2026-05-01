@@ -76,8 +76,10 @@ export default function TabLayout() {
         onClose={() => setModalVisible(false)}
         onSubmit={async (tx) => {
           const signedAmount = tx.type === 'expense' ? -tx.amount : tx.amount;
-          const cat = (categorias as any[]).find((c) => c.nombre === tx.category);
-          const categoriaId = cat?.ID ?? (categorias.length > 0 ? (categorias[0] as any).ID : null);
+          const categoriaId = tx.type === 'expense'
+            ? ((categorias as any[]).find((c) => c.nombre === tx.category)?.ID
+                ?? (categorias.length > 0 ? (categorias[0] as any).ID : null))
+            : null;
 
           TransaccionRepository.insertar({
             nombre: tx.description || tx.category,
@@ -105,7 +107,7 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    alignSelf: 'center',
+    right: 24,
     width: 56,
     height: 56,
     borderRadius: 28,
