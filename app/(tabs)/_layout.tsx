@@ -1,4 +1,6 @@
 import { PresupuestoRepository } from "@/modules/presupuesto/PresupuestoRepository";
+import { TransaccionRepository } from "@/modules/transacciones/TransaccionRepository";
+import { transactionEvents } from "@/modules/transacciones/transactionEvents";
 import { usePresupuestoViewModel } from "@/modules/presupuesto/PresupuestoViewModel";
 import { Tabs } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -73,13 +75,24 @@ export default function TabLayout() {
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         onSubmit={async (tx) => {
-          if (categorias.length > 0) {
-            await agregarGasto(categorias[0].ID, tx.amount);
+          const signedAmount = tx.type === 'expense' ? -tx.amount : tx.amount;
+          const cat = (categorias as any[]).find((c) => c.nombre === tx.category);
+          const categoriaId = cat?.ID ?? (categorias.length > 0 ? (categorias[0] as any).ID : null);
+
+          TransaccionRepository.insertar({
+            nombre: tx.description || tx.category,
+            valor_transaccion: signedAmount,
+            categoria_id: categoriaId,
+            descripcion: tx.description,
+          });
+
+          transactionEvents.emit();
+
+          if (tx.type === 'expense' && categoriaId !== null) {
+            await agregarGasto(categoriaId, tx.amount);
           }
 
           setModalVisible(false);
-
-          // 🔥 fuerza re-render cambiando de tab (hack simple)
         }}
       />
     </View>

@@ -4,7 +4,6 @@ import {
   getAllMetas,
   getResumen,
   insertMeta,
-  createTable
 } from '../../data/meta.service';
 
 export const useMetas = () => {
@@ -21,7 +20,6 @@ export const useMetas = () => {
   };
 
   useEffect(() => {
-    createTable();
     loadData();
   }, []);
 

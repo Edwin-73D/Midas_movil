@@ -1,82 +1,47 @@
-import db from '../../../db/client';
+import { desc, eq, sql } from 'drizzle-orm';
+import { db } from '../../../db/client';
+import { meta as metaTable } from '../../../db/schema';
 import { Meta } from '../domain/meta.model';
 
-export const createTable = () => {
-  db.transaction(tx => {
-    tx.executeSql(`
-      CREATE TABLE IF NOT EXISTS Meta (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nombre TEXT,
-        meta_total REAL,
-        monto REAL,
-        porcentaje_actual REAL,
-        descripcion TEXT,
-        fecha_finalizar TEXT
-      );
-    `);
-  });
-};
-
-export const insertMeta = (meta: Meta) => {
-  const porcentaje = (meta.monto / meta.metaTotal) * 100;
-
-  db.transaction(tx => {
-    tx.executeSql(
-      `INSERT INTO Meta
-      (nombre, meta_total, monto, porcentaje_actual, descripcion, fecha_finalizar)
-      VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        meta.nombre,
-        meta.metaTotal,
-        meta.monto,
-        porcentaje,
-        meta.descripcion,
-        meta.fechaFinalizar
-      ]
-    );
-  });
+export const insertMeta = (metaData: Meta) => {
+  const porcentaje = (metaData.monto / metaData.metaTotal) * 100;
+  db.insert(metaTable).values({
+    nombre: metaData.nombre,
+    metaTotal: metaData.metaTotal,
+    monto: metaData.monto,
+    porcentajeActual: porcentaje,
+    descripcion: metaData.descripcion,
+    fechaFinalizar: metaData.fechaFinalizar,
+  }).run();
 };
 
 export const getAllMetas = (callback: (data: Meta[]) => void) => {
-  db.transaction(tx => {
-    tx.executeSql(
-      `SELECT * FROM Meta ORDER BY id DESC`,
-      [],
-      (_, results) => {
-        const rows = results.rows;
-        let metas: Meta[] = [];
-
-        for (let i = 0; i < rows.length; i++) {
-          metas.push(rows.item(i));
-        }
-
-        callback(metas);
-      }
-    );
-  });
+  const rows = db.select().from(metaTable).orderBy(desc(metaTable.id)).all();
+  callback(rows.map(r => ({
+    id: r.id ?? undefined,
+    nombre: r.nombre,
+    metaTotal: r.metaTotal ?? 0,
+    monto: r.monto ?? 0,
+    porcentajeActual: r.porcentajeActual ?? 0,
+    descripcion: r.descripcion ?? undefined,
+    fechaFinalizar: r.fechaFinalizar ?? '',
+  })));
 };
 
 export const updateMonto = (id: number, monto: number) => {
-  db.transaction(tx => {
-    tx.executeSql(
-      `UPDATE Meta
-       SET monto = ?,
-           porcentaje_actual = ( ? * 100.0 ) / meta_total
-       WHERE id = ?`,
-      [monto, monto, id]
-    );
-  });
+  db.update(metaTable)
+    .set({
+      monto,
+      porcentajeActual: sql`(${monto} * 100.0) / meta_total`,
+    })
+    .where(eq(metaTable.id, id))
+    .run();
 };
 
 export const getResumen = (callback: (total: number, count: number) => void) => {
-  db.transaction(tx => {
-    tx.executeSql(
-      `SELECT SUM(monto) as total, COUNT(*) as count FROM Meta`,
-      [],
-      (_, res) => {
-        const row = res.rows.item(0);
-        callback(row.total || 0, row.count);
-      }
-    );
-  });
+  const row = db.select({
+    total: sql<number>`SUM(${metaTable.monto})`,
+    count: sql<number>`COUNT(*)`,
+  }).from(metaTable).get();
+  callback(row?.total || 0, row?.count ?? 0);
 };

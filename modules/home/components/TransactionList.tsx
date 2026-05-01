@@ -1,51 +1,76 @@
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MidasColors } from '@/constants/theme';
+import { TransaccionRepository, TransaccionRow } from '@/modules/transacciones/TransaccionRepository';
+import { transactionEvents } from '@/modules/transacciones/transactionEvents';
 
-type Transaction = {
-  id: string;
-  name: string;
-  datetime: string;
-  amount: number;
-  iconName: 'fork.knife' | 'cart.fill' | 'laptopcomputer' | 'play.rectangle.fill';
-  iconBg: string;
-};
+function formatDateTime(raw: string): string {
+  const date = new Date(raw.replace(' ', 'T'));
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-const TRANSACTIONS: Transaction[] = [
-  { id: '1', name: 'Chipotle Mexican Grill', datetime: 'Today, 12:45 PM',    amount: -18.45,  iconName: 'fork.knife',          iconBg: '#2A1A0F' },
-  { id: '2', name: 'Whole Foods Market',     datetime: 'Yesterday, 6:30 PM', amount: -84.20,  iconName: 'cart.fill',           iconBg: '#0F2A1A' },
-  { id: '3', name: 'Upwork Earnings',        datetime: 'Yesterday, 9:00 AM', amount: +350.00, iconName: 'laptopcomputer',      iconBg: '#0F1A2A' },
-  { id: '4', name: 'Netflix Subscription',   datetime: 'Nov 15, 2023',       amount: -15.99,  iconName: 'play.rectangle.fill', iconBg: '#2A0F0F' },
-];
+  if (diffDays === 0) return `Today, ${time}`;
+  if (diffDays === 1) return `Yesterday, ${time}`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 function formatAmount(amount: number): string {
   const abs = Math.abs(amount).toFixed(2);
   return amount >= 0 ? `+$${abs}` : `-$${abs}`;
 }
 
+function getIconConfig(amount: number): { iconName: 'laptopcomputer' | 'cart.fill'; iconBg: string } {
+  if (amount >= 0) return { iconName: 'laptopcomputer', iconBg: '#0F1A2A' };
+  return { iconName: 'cart.fill', iconBg: '#0F2A1A' };
+}
+
 export function TransactionList() {
+  const [transactions, setTransactions] = useState<TransaccionRow[]>([]);
+
+  function load() {
+    setTransactions(TransaccionRepository.getRecientes());
+  }
+
+  useEffect(() => {
+    load();
+    return transactionEvents.subscribe(load);
+  }, []);
+
   return (
     <View>
       <Text style={styles.sectionTitle}>Recent Transactions</Text>
 
       <View style={styles.card}>
-        {TRANSACTIONS.map((tx, index) => (
-          <View key={tx.id} style={[styles.row, index < TRANSACTIONS.length - 1 && styles.rowBorder]}>
-            <View style={[styles.iconBox, { backgroundColor: tx.iconBg }]}>
-              <IconSymbol name={tx.iconName} size={22} color={MidasColors.textSecondary} />
-            </View>
+        {transactions.length === 0 ? (
+          <Text style={[styles.txDate, { paddingVertical: 14 }]}>No hay transacciones aún.</Text>
+        ) : (
+          transactions.map((tx, index) => {
+            const { iconName, iconBg } = getIconConfig(tx.valor_transaccion);
+            const displayName = tx.nombre || tx.descripcion || 'Transacción';
+            return (
+              <View
+                key={tx.ID}
+                style={[styles.row, index < transactions.length - 1 && styles.rowBorder]}
+              >
+                <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
+                  <IconSymbol name={iconName} size={22} color={MidasColors.textSecondary} />
+                </View>
 
-            <View style={styles.info}>
-              <Text style={styles.txName}>{tx.name}</Text>
-              <Text style={styles.txDate}>{tx.datetime}</Text>
-            </View>
+                <View style={styles.info}>
+                  <Text style={styles.txName}>{displayName}</Text>
+                  <Text style={styles.txDate}>{formatDateTime(tx.fecha_hora)}</Text>
+                </View>
 
-            <Text style={[styles.amount, tx.amount >= 0 && styles.positive]}>
-              {formatAmount(tx.amount)}
-            </Text>
-          </View>
-        ))}
+                <Text style={[styles.amount, tx.valor_transaccion >= 0 && styles.positive]}>
+                  {formatAmount(tx.valor_transaccion)}
+                </Text>
+              </View>
+            );
+          })
+        )}
       </View>
     </View>
   );

@@ -16,6 +16,18 @@ export const initDB = () => {
       );
     `);
 
+    db.execSync(`
+      CREATE TABLE IF NOT EXISTS transaccion (
+        ID INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT,
+        valor_transaccion REAL NOT NULL,
+        fecha_hora DATETIME DEFAULT CURRENT_TIMESTAMP,
+        categoria_id INTEGER,
+        descripcion TEXT,
+        FOREIGN KEY (categoria_id) REFERENCES Categoria(ID)
+      );
+    `);
+
     console.log("✅ Base de datos lista");
   } catch (error) {
     console.log("❌ Error creando DB:", error);
