@@ -1,47 +1,105 @@
-import { desc, eq, sql } from 'drizzle-orm';
-import { db } from '../../../db/client';
-import { meta as metaTable } from '../../../db/schema';
-import { Meta } from '../domain/meta.model';
+import { eq } from 'drizzle-orm';
 
+import { db } from '@/db/client';
+import { meta } from '@/db/schema';
+import type { Meta } from '@/modules/metas/domain/meta.model';
+
+function assertValidMetaForWrite(metaData: Meta): void {
+  if (!metaData.nombre?.trim()) {
+    throw new Error('Invalid nombre');
+  }
+  const { metaTotal, monto, fechaFinalizar } = metaData;
+  if (
+    metaTotal == null ||
+    typeof metaTotal !== 'number' ||
+    !Number.isFinite(metaTotal) ||
+    metaTotal <= 0
+  ) {
+    throw new Error('Invalid metaTotal');
+  }
+  if (
+    monto == null ||
+    typeof monto !== 'number' ||
+    !Number.isFinite(monto) ||
+    monto < 0
+  ) {
+    throw new Error('Invalid monto');
+  }
+  if (!fechaFinalizar?.trim()) {
+    throw new Error('Invalid fechaFinalizar');
+  }
+}
+
+// 🔹 GET ALL
+export const getAllMetas = (setMetas: (metas: Meta[]) => void) => {
+  if (!db) {
+    setMetas([]);
+    return;
+  }
+  const result = db.select().from(meta).all();
+  setMetas(result as Meta[]);
+};
+
+// 🔹 RESUMEN
+export const getResumen = (callback: (total: number, count: number) => void) => {
+  if (!db) {
+    callback(0, 0);
+    return;
+  }
+  const metas = db.select().from(meta).all();
+
+  const total = metas.reduce((acc, m) => acc + m.metaTotal, 0);
+  const count = metas.length;
+
+  callback(total, count);
+};
+
+// 🔹 CREATE
 export const insertMeta = (metaData: Meta) => {
+  if (!db) return;
+
+  assertValidMetaForWrite(metaData);
+
   const porcentaje = (metaData.monto / metaData.metaTotal) * 100;
-  db.insert(metaTable).values({
-    nombre: metaData.nombre,
-    metaTotal: metaData.metaTotal,
-    monto: metaData.monto,
-    porcentajeActual: porcentaje,
-    descripcion: metaData.descripcion,
-    fechaFinalizar: metaData.fechaFinalizar,
-  }).run();
-};
 
-export const getAllMetas = (callback: (data: Meta[]) => void) => {
-  const rows = db.select().from(metaTable).orderBy(desc(metaTable.id)).all();
-  callback(rows.map(r => ({
-    id: r.id ?? undefined,
-    nombre: r.nombre,
-    metaTotal: r.metaTotal ?? 0,
-    monto: r.monto ?? 0,
-    porcentajeActual: r.porcentajeActual ?? 0,
-    descripcion: r.descripcion ?? undefined,
-    fechaFinalizar: r.fechaFinalizar ?? '',
-  })));
-};
-
-export const updateMonto = (id: number, monto: number) => {
-  db.update(metaTable)
-    .set({
-      monto,
-      porcentajeActual: sql`(${monto} * 100.0) / meta_total`,
+  db.insert(meta)
+    .values({
+      nombre: metaData.nombre,
+      metaTotal: metaData.metaTotal,
+      monto: metaData.monto,
+      porcentajeActual: porcentaje,
+      descripcion: metaData.descripcion,
+      fechaFinalizar: metaData.fechaFinalizar,
     })
-    .where(eq(metaTable.id, id))
     .run();
 };
 
-export const getResumen = (callback: (total: number, count: number) => void) => {
-  const row = db.select({
-    total: sql<number>`SUM(${metaTable.monto})`,
-    count: sql<number>`COUNT(*)`,
-  }).from(metaTable).get();
-  callback(row?.total || 0, row?.count ?? 0);
+// 🔹 UPDATE
+export const updateMeta = (metaData: Meta) => {
+  if (!db || !metaData.id) return;
+
+  assertValidMetaForWrite(metaData);
+
+  const porcentaje = (metaData.monto / metaData.metaTotal) * 100;
+
+  db.update(meta)
+    .set({
+      nombre: metaData.nombre,
+      metaTotal: metaData.metaTotal,
+      monto: metaData.monto,
+      porcentajeActual: porcentaje,
+      descripcion: metaData.descripcion,
+      fechaFinalizar: metaData.fechaFinalizar,
+    })
+    .where(eq(meta.id, metaData.id))
+    .run();
+};
+
+// 🔹 DELETE
+export const deleteMeta = (id: number) => {
+  if (!db) return;
+
+  db.delete(meta)
+    .where(eq(meta.id, id))
+    .run();
 };

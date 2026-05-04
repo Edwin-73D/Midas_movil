@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Meta } from '../../domain/meta.model';
+
+import type { Meta } from '@/modules/metas/domain/meta.model';
 import {
   getAllMetas,
   getResumen,
   insertMeta,
-} from '../../data/meta.service';
+  updateMeta,
+  deleteMeta,
+} from '@/modules/metas/data/meta.service';
 
 export const useMetas = () => {
   const [metas, setMetas] = useState<Meta[]>([]);
@@ -23,15 +26,29 @@ export const useMetas = () => {
     loadData();
   }, []);
 
-  const addMeta = () => {
-    insertMeta({
-      nombre: 'Nueva Meta',
-      metaTotal: 1000,
-      monto: 100,
-      porcentajeActual: 0,
-      fechaFinalizar: '2026-12-31'
-    });
+  // 🔹 CREATE
+  const addMeta = (meta: Meta) => {
+    try {
+      insertMeta(meta);
+      loadData();
+    } catch (e) {
+      console.error('addMeta:', e);
+    }
+  };
 
+  // 🔹 UPDATE
+  const editMeta = (meta: Meta) => {
+    try {
+      updateMeta(meta);
+      loadData();
+    } catch (e) {
+      console.error('editMeta:', e);
+    }
+  };
+
+  // 🔹 DELETE
+  const removeMeta = (id: number) => {
+    deleteMeta(id);
     loadData();
   };
 
@@ -39,6 +56,8 @@ export const useMetas = () => {
     metas,
     total,
     count,
-    addMeta
+    addMeta,
+    editMeta,
+    removeMeta
   };
 };

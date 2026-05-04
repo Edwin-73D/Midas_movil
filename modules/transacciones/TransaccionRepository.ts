@@ -1,4 +1,4 @@
-import db from "../database/database";
+import sqlite from '@/db/client';
 
 export type TransaccionRow = {
   ID: number;
@@ -17,7 +17,7 @@ export const TransaccionRepository = {
     descripcion: string;
   }) => {
     try {
-      db.runSync(
+      sqlite.runSync(
         `INSERT INTO transaccion (nombre, valor_transaccion, categoria_id, descripcion)
          VALUES (?, ?, ?, ?)`,
         [t.nombre, t.valor_transaccion, t.categoria_id, t.descripcion]
@@ -29,7 +29,7 @@ export const TransaccionRepository = {
 
   getRecientes: (limit = 20): TransaccionRow[] => {
     try {
-      return db.getAllSync(
+      return sqlite.getAllSync(
         "SELECT * FROM transaccion ORDER BY fecha_hora DESC LIMIT ?",
         [limit]
       ) as TransaccionRow[];

@@ -82,7 +82,7 @@ export default function TabLayout() {
             : null;
 
           TransaccionRepository.insertar({
-            nombre: tx.description || tx.category,
+            nombre: tx.description ?? tx.category ?? 'Transacción',
             valor_transaccion: signedAmount,
             categoria_id: categoriaId,
             descripcion: tx.description,

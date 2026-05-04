@@ -1,16 +1,16 @@
-import db from "../database/database";
+import sqlite from '@/db/client';
 
 export const PresupuestoRepository = {
   limpiarCategorias: () => {
   try {
-    db.runSync("DELETE FROM Categoria");
+    sqlite.runSync("DELETE FROM Categoria");
   } catch (error) {
     console.log("Error limpiando categorias:", error);
   }
 },  
   getCategorias: () => {
     try {
-      return db.getAllSync("SELECT * FROM Categoria");
+      return sqlite.getAllSync("SELECT * FROM Categoria");
     } catch (error) {
       console.log("Error obteniendo categorias:", error);
       return [];
@@ -20,7 +20,7 @@ export const PresupuestoRepository = {
 
   insertarCategoria: (cat: any) => {
     try {
-      db.runSync(
+      sqlite.runSync(
         `INSERT INTO Categoria 
         (nombre, monto_esperado, monto_real, porcentaje, descripcion)
         VALUES (?, ?, ?, ?, ?)`,
@@ -40,7 +40,7 @@ export const PresupuestoRepository = {
   // 👇 evita duplicados (MUY importante)
   existeData: () => {
     try {
-      const result = db.getFirstSync(
+      const result = sqlite.getFirstSync(
         "SELECT COUNT(*) as count FROM Categoria"
     ) as { count: number };
 
@@ -53,7 +53,7 @@ export const PresupuestoRepository = {
 
 export const actualizarMontoReal = async (categoriaId: number, monto: number) => {
   try {
-    await db.runAsync(
+    await sqlite.runAsync(
       `UPDATE Categoria
        SET monto_real = monto_real + ?
        WHERE ID = ?`,

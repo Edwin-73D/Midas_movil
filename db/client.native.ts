@@ -1,4 +1,4 @@
-import { drizzle } from 'drizzle-orm/expo-sqlite';
+import { drizzle, type ExpoSQLiteDatabase } from 'drizzle-orm/expo-sqlite';
 import * as SQLite from 'expo-sqlite';
 
 import * as schema from './schema';
@@ -52,4 +52,8 @@ expo.execSync(`
   )
 `);
 
-export const db = drizzle(expo, { schema });
+/** Drizzle ORM instance (metas module, typed queries). */
+export const db: ExpoSQLiteDatabase<typeof schema> = drizzle(expo, { schema });
+
+/** Raw expo-sqlite sync API (legacy repositories). */
+export default expo;
