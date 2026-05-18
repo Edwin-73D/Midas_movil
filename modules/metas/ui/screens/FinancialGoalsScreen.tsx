@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Button, FlatList, StyleSheet } from 'react-native';
 
-import type { Meta } from '@/modules/metas/domain/meta.model';
+import type { Meta, MetaFormInput } from '@/modules/metas/domain/meta.model';
 import MetaForm from '@/modules/metas/ui/components/MetaForm';
 import MetaItem from '@/modules/metas/ui/components/MetaItem';
 import { useMetas } from '@/modules/metas/ui/hooks/useMetas';
@@ -12,7 +12,7 @@ export default function FinancialGoalsScreen() {
   const [editingMeta, setEditingMeta] = useState<Meta | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  const handleSubmit = (meta: Meta) => {
+  const handleSubmit = (meta: MetaFormInput) => {
     if (editingMeta) {
       editMeta(meta);
     } else {

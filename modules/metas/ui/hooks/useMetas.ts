@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
-import type { Meta } from '@/modules/metas/domain/meta.model';
+import type { Meta, MetaFormInput } from '@/modules/metas/domain/meta.model';
 import {
   getAllMetas,
   getResumen,
@@ -8,45 +8,50 @@ import {
   updateMeta,
   deleteMeta,
 } from '@/modules/metas/data/meta.service';
+import { metaEvents } from '@/modules/metas/metaEvents';
+import { transactionEvents } from '@/modules/transacciones/transactionEvents';
 
 export const useMetas = () => {
   const [metas, setMetas] = useState<Meta[]>([]);
   const [total, setTotal] = useState(0);
   const [count, setCount] = useState(0);
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
     getAllMetas(setMetas);
     getResumen((t, c) => {
       setTotal(t);
       setCount(c);
     });
-  };
+  }, []);
 
   useEffect(() => {
     loadData();
-  }, []);
+    const unsubMeta = metaEvents.subscribe(loadData);
+    const unsubTx = transactionEvents.subscribe(loadData);
+    return () => {
+      unsubMeta();
+      unsubTx();
+    };
+  }, [loadData]);
 
-  // 🔹 CREATE
-  const addMeta = (meta: Meta) => {
+  const addMeta = (metaInput: MetaFormInput) => {
     try {
-      insertMeta(meta);
+      insertMeta(metaInput);
       loadData();
     } catch (e) {
       console.error('addMeta:', e);
     }
   };
 
-  // 🔹 UPDATE
-  const editMeta = (meta: Meta) => {
+  const editMeta = (metaInput: MetaFormInput) => {
     try {
-      updateMeta(meta);
+      updateMeta(metaInput);
       loadData();
     } catch (e) {
       console.error('editMeta:', e);
     }
   };
 
-  // 🔹 DELETE
   const removeMeta = (id: number) => {
     deleteMeta(id);
     loadData();
@@ -58,6 +63,6 @@ export const useMetas = () => {
     count,
     addMeta,
     editMeta,
-    removeMeta
+    removeMeta,
   };
 };

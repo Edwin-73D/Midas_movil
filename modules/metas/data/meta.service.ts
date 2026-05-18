@@ -1,105 +1,143 @@
 import { eq } from 'drizzle-orm';
 
 import { db } from '@/db/client';
-import { meta } from '@/db/schema';
-import type { Meta } from '@/modules/metas/domain/meta.model';
+import expo from '@/db/client';
+import { meta, metaAporte } from '@/db/schema';
+import type { Meta, MetaFormInput } from '@/modules/metas/domain/meta.model';
+import { calcPorcentajeActual } from '@/modules/metas/domain/meta.utils';
+import { metaEvents } from '@/modules/metas/metaEvents';
 
-function assertValidMetaForWrite(metaData: Meta): void {
-  if (!metaData.nombre?.trim()) {
-    throw new Error('Invalid nombre');
-  }
-  const { metaTotal, monto, fechaFinalizar } = metaData;
+function mapRowToMeta(row: typeof meta.$inferSelect): Meta {
+  const monto = row.monto ?? 0;
+  const metaTotal = row.metaTotal;
+  return {
+    id: row.id,
+    nombre: row.nombre,
+    metaTotal,
+    monto,
+    porcentajeActual: calcPorcentajeActual(monto, metaTotal),
+    descripcion: row.descripcion ?? undefined,
+    fechaFinalizar: row.fechaFinalizar ?? '',
+  };
+}
+
+function assertValidMetaFormInput(data: MetaFormInput): void {
+  if (!data.nombre?.trim()) throw new Error('Invalid nombre');
   if (
-    metaTotal == null ||
-    typeof metaTotal !== 'number' ||
-    !Number.isFinite(metaTotal) ||
-    metaTotal <= 0
+    data.metaTotal == null ||
+    !Number.isFinite(data.metaTotal) ||
+    data.metaTotal <= 0
   ) {
     throw new Error('Invalid metaTotal');
   }
-  if (
-    monto == null ||
-    typeof monto !== 'number' ||
-    !Number.isFinite(monto) ||
-    monto < 0
-  ) {
-    throw new Error('Invalid monto');
-  }
-  if (!fechaFinalizar?.trim()) {
-    throw new Error('Invalid fechaFinalizar');
-  }
+  if (!data.fechaFinalizar?.trim()) throw new Error('Invalid fechaFinalizar');
 }
 
-// 🔹 GET ALL
 export const getAllMetas = (setMetas: (metas: Meta[]) => void) => {
   if (!db) {
     setMetas([]);
     return;
   }
   const result = db.select().from(meta).all();
-  setMetas(result as Meta[]);
+  setMetas(result.map(mapRowToMeta));
 };
 
-// 🔹 RESUMEN
+export const getMetasSync = (): Meta[] => {
+  if (!db) return [];
+  return db.select().from(meta).all().map(mapRowToMeta);
+};
+
 export const getResumen = (callback: (total: number, count: number) => void) => {
   if (!db) {
     callback(0, 0);
     return;
   }
   const metas = db.select().from(meta).all();
-
   const total = metas.reduce((acc, m) => acc + m.metaTotal, 0);
-  const count = metas.length;
-
-  callback(total, count);
+  callback(total, metas.length);
 };
 
-// 🔹 CREATE
-export const insertMeta = (metaData: Meta) => {
+export const insertMeta = (metaData: MetaFormInput) => {
   if (!db) return;
-
-  assertValidMetaForWrite(metaData);
-
-  const porcentaje = (metaData.monto / metaData.metaTotal) * 100;
+  assertValidMetaFormInput(metaData);
 
   db.insert(meta)
     .values({
-      nombre: metaData.nombre,
+      nombre: metaData.nombre.trim(),
       metaTotal: metaData.metaTotal,
-      monto: metaData.monto,
-      porcentajeActual: porcentaje,
+      monto: 0,
       descripcion: metaData.descripcion,
       fechaFinalizar: metaData.fechaFinalizar,
     })
     .run();
+
+  metaEvents.emit();
 };
 
-// 🔹 UPDATE
-export const updateMeta = (metaData: Meta) => {
+export const updateMeta = (metaData: MetaFormInput) => {
   if (!db || !metaData.id) return;
+  assertValidMetaFormInput(metaData);
 
-  assertValidMetaForWrite(metaData);
-
-  const porcentaje = (metaData.monto / metaData.metaTotal) * 100;
+  const existing = db.select().from(meta).where(eq(meta.id, metaData.id)).get();
+  if (!existing) return;
 
   db.update(meta)
     .set({
-      nombre: metaData.nombre,
+      nombre: metaData.nombre.trim(),
       metaTotal: metaData.metaTotal,
-      monto: metaData.monto,
-      porcentajeActual: porcentaje,
       descripcion: metaData.descripcion,
       fechaFinalizar: metaData.fechaFinalizar,
     })
     .where(eq(meta.id, metaData.id))
     .run();
+
+  metaEvents.emit();
 };
 
-// 🔹 DELETE
 export const deleteMeta = (id: number) => {
   if (!db) return;
-
-  db.delete(meta)
-    .where(eq(meta.id, id))
-    .run();
+  db.delete(meta).where(eq(meta.id, id)).run();
+  metaEvents.emit();
 };
+
+type AddMontoParams = {
+  metaId: number;
+  amount: number;
+  descripcion?: string;
+  transaccionId?: number;
+};
+
+/** Aporte manual (fuera del flujo de transacciones). */
+export function addMontoToMeta(params: AddMontoParams): void {
+  if (!db || params.amount <= 0) return;
+
+  expo.withTransactionSync(() => {
+    addMontoToMetaInternal(params);
+  });
+
+  metaEvents.emit();
+}
+
+/** Solo dentro de withTransactionSync (registrar-transaccion). */
+export function addMontoToMetaInternal(params: AddMontoParams): void {
+  if (!db) return;
+
+  const current = db.select().from(meta).where(eq(meta.id, params.metaId)).get();
+  if (!current) throw new Error('Meta no encontrada');
+
+  db.insert(metaAporte)
+    .values({
+      metaId: params.metaId,
+      monto: params.amount,
+      descripcion: params.descripcion,
+      transaccionId: params.transaccionId ?? null,
+    })
+    .run();
+
+  const newMonto = (current.monto ?? 0) + params.amount;
+
+  db.update(meta)
+    .set({ monto: newMonto })
+    .where(eq(meta.id, params.metaId))
+    .run();
+}

@@ -1,27 +1,38 @@
-import { PresupuestoRepository } from "@/modules/presupuesto/PresupuestoRepository";
-import { TransaccionRepository } from "@/modules/transacciones/TransaccionRepository";
-import { transactionEvents } from "@/modules/transacciones/transactionEvents";
-import { usePresupuestoViewModel } from "@/modules/presupuesto/PresupuestoViewModel";
+import { registrarTransaccion } from '@/modules/finanzas/registrar-transaccion.service';
+import { getMetasSync } from '@/modules/metas/data/meta.service';
+import { usePresupuestoViewModel } from '@/modules/presupuesto/PresupuestoViewModel';
+import type { ExpenseCategory } from '@/modules/shared/finance/categories';
+import { DB_CATEGORY_NAMES } from '@/modules/shared/finance/categories';
 import { Tabs } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MidasColors } from '@/constants/theme';
-import { AddTransactionModal } from '@/modules/home/components/AddTransactionModal';
+import {
+  AddTransactionModal,
+  type MetaPickerItem,
+} from '@/modules/home/components/AddTransactionModal';
 
+type CategoriaRow = { ID: number; nombre: string };
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const [modalVisible, setModalVisible] = useState(false);
+  const [metasPicker, setMetasPicker] = useState<MetaPickerItem[]>([]);
 
   const { agregarGasto, categorias } = usePresupuestoViewModel();
 
-  useEffect(() => {
-    PresupuestoRepository.limpiarCategorias();
-  }, []);
+  function openTransactionModal() {
+    setMetasPicker(
+      getMetasSync()
+        .filter((m) => m.id != null)
+        .map((m) => ({ id: m.id!, nombre: m.nombre }))
+    );
+    setModalVisible(true);
+  }
 
   return (
     <View style={styles.wrapper}>
@@ -66,34 +77,41 @@ export default function TabLayout() {
       <TouchableOpacity
         style={[styles.fab, { bottom: insets.bottom + 48 }]}
         activeOpacity={0.85}
-        onPress={() => setModalVisible(true)}
+        onPress={openTransactionModal}
       >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
 
       <AddTransactionModal
         visible={modalVisible}
+        metas={metasPicker}
         onClose={() => setModalVisible(false)}
-        onSubmit={async (tx) => {
-          const signedAmount = tx.type === 'expense' ? -tx.amount : tx.amount;
-          const categoriaId = tx.type === 'expense'
-            ? ((categorias as any[]).find((c) => c.nombre === tx.category)?.ID
-                ?? (categorias.length > 0 ? (categorias[0] as any).ID : null))
-            : null;
-
-          TransaccionRepository.insertar({
-            nombre: tx.description ?? tx.category ?? 'Transacción',
-            valor_transaccion: signedAmount,
-            categoria_id: categoriaId,
-            descripcion: tx.description,
-          });
-
-          transactionEvents.emit();
-
-          if (tx.type === 'expense' && categoriaId !== null) {
-            await agregarGasto(categoriaId, tx.amount);
+        onSubmit={(tx) => {
+          try {
+            registrarTransaccion(
+              {
+                type: tx.type,
+                amount: tx.amount,
+                category: tx.category as ExpenseCategory | null,
+                description: tx.description,
+                metaId: tx.metaId,
+              },
+              {
+                resolveCategoriaId: (category) => {
+                  const dbName = DB_CATEGORY_NAMES[category];
+                  const found = (categorias as CategoriaRow[]).find(
+                    (c) => c.nombre === dbName
+                  );
+                  return found?.ID ?? null;
+                },
+                onPresupuestoGasto: agregarGasto,
+              }
+            );
+          } catch (e) {
+            const message = e instanceof Error ? e.message : 'No se pudo guardar';
+            Alert.alert('Error', message);
+            return;
           }
-
           setModalVisible(false);
         }}
       />
