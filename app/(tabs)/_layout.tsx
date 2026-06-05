@@ -2,7 +2,7 @@ import { PresupuestoRepository } from "@/modules/presupuesto/PresupuestoReposito
 import { TransaccionRepository } from "@/modules/transacciones/TransaccionRepository";
 import { transactionEvents } from "@/modules/transacciones/transactionEvents";
 import { usePresupuestoViewModel } from "@/modules/presupuesto/PresupuestoViewModel";
-import { Tabs } from 'expo-router';
+import { Tabs, useSegments } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +15,9 @@ import { AddTransactionModal } from '@/modules/home/components/AddTransactionMod
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const segments = useSegments();
   const [modalVisible, setModalVisible] = useState(false);
+  const isProductosTab = segments[segments.length - 1] === 'productos';
 
   const { agregarGasto, categorias } = usePresupuestoViewModel();
 
@@ -61,15 +63,24 @@ export default function TabLayout() {
             tabBarIcon: ({ color }) => <IconSymbol size={26} name="creditcard.fill" color={color} />,
           }}
         />
+        <Tabs.Screen
+          name="productos"
+          options={{
+            title: 'Productos',
+            tabBarIcon: ({ color }) => <IconSymbol size={26} name="wallet.fill" color={color} />,
+          }}
+        />
       </Tabs>
 
-      <TouchableOpacity
-        style={[styles.fab, { bottom: insets.bottom + 48 }]}
-        activeOpacity={0.85}
-        onPress={() => setModalVisible(true)}
-      >
-        <Text style={styles.fabIcon}>+</Text>
-      </TouchableOpacity>
+      {!isProductosTab && (
+        <TouchableOpacity
+          style={[styles.fab, { bottom: insets.bottom + 48 }]}
+          activeOpacity={0.85}
+          onPress={() => setModalVisible(true)}
+        >
+          <Text style={styles.fabIcon}>+</Text>
+        </TouchableOpacity>
+      )}
 
       <AddTransactionModal
         visible={modalVisible}

@@ -52,6 +52,24 @@ expo.execSync(`
   )
 `);
 
+expo.execSync(`
+  CREATE TABLE IF NOT EXISTS Producto_financiero (
+    ID INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre VARCHAR(255),
+    monto_neto REAL,
+    monto_total FLOAT,
+    interes FLOAT,
+    entidad_financiera VARCHAR(255),
+    tipo TEXT,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    meta_id INTEGER UNIQUE,
+    FOREIGN KEY(meta_id)
+      REFERENCES Meta(ID)
+      ON DELETE SET NULL
+      ON UPDATE CASCADE
+  )
+`);
+
 /** Drizzle ORM instance (metas module, typed queries). */
 export const db: ExpoSQLiteDatabase<typeof schema> = drizzle(expo, { schema });
 

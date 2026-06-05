@@ -35,3 +35,18 @@ export const balance = sqliteTable('Balance', {
   id: integer('ID').primaryKey({ autoIncrement: true }),
   montoEsperado: real('monto_esperado').default(0),
 });
+
+export const productoFinanciero = sqliteTable('Producto_financiero', {
+  id: integer('ID').primaryKey({ autoIncrement: true }),
+  nombre: text('nombre'),
+  montoNeto: real('monto_neto'),
+  montoTotal: real('monto_total'),
+  interes: real('interes'),
+  entidadFinanciera: text('entidad_financiera'),
+  tipo: text('tipo'), // 'asset' | 'debt'
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  metaId: integer('meta_id').unique().references(() => meta.id, {
+    onDelete: 'set null',
+    onUpdate: 'cascade',
+  }),
+});

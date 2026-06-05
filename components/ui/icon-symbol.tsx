@@ -18,6 +18,7 @@ const MAPPING = {
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  'chevron.left': 'chevron-left',
   'target': 'gps-fixed',
   'creditcard.fill': 'credit-card',
   'sparkles': 'auto-awesome',
@@ -27,6 +28,13 @@ const MAPPING = {
   'cart.fill': 'shopping-cart',
   'laptopcomputer': 'laptop',
   'play.rectangle.fill': 'play-circle-filled',
+  'bell.fill': 'notifications',
+  'banknote.fill': 'payments',
+  'building.columns.fill': 'account-balance',
+  'wallet.fill': 'account-balance-wallet',
+  'checkmark.circle.fill': 'check-circle',
+  'chart.bar.fill': 'bar-chart',
+  'ellipsis': 'more-horiz',
 } as IconMapping;
 
 /**
