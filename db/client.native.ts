@@ -70,6 +70,27 @@ expo.execSync(`
   )
 `);
 
+try {
+  expo.execSync(
+    'ALTER TABLE transaccion ADD COLUMN meta_id INTEGER REFERENCES Meta(ID)'
+  );
+} catch {
+  // columna ya existe
+}
+
+expo.execSync(`
+  CREATE TABLE IF NOT EXISTS meta_aporte (
+    ID INTEGER PRIMARY KEY AUTOINCREMENT,
+    meta_id INTEGER NOT NULL,
+    monto REAL NOT NULL,
+    fecha_hora TEXT DEFAULT CURRENT_TIMESTAMP,
+    descripcion TEXT,
+    transaccion_id INTEGER,
+    FOREIGN KEY (meta_id) REFERENCES Meta(ID) ON DELETE CASCADE,
+    FOREIGN KEY (transaccion_id) REFERENCES transaccion(ID) ON DELETE SET NULL
+  )
+`);
+
 /** Drizzle ORM instance (metas module, typed queries). */
 export const db: ExpoSQLiteDatabase<typeof schema> = drizzle(expo, { schema });
 

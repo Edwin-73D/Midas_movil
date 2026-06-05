@@ -1,29 +1,86 @@
-import { PresupuestoRepository } from "@/modules/presupuesto/PresupuestoRepository";
-import { TransaccionRepository } from "@/modules/transacciones/TransaccionRepository";
-import { transactionEvents } from "@/modules/transacciones/transactionEvents";
-import { usePresupuestoViewModel } from "@/modules/presupuesto/PresupuestoViewModel";
-import { Tabs, useSegments } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { registrarTransaccion } from '@/modules/finanzas/registrar-transaccion.service';
+import { getMetasSync } from '@/modules/metas/data/meta.service';
+import { usePresupuestoViewModel } from '@/modules/presupuesto/PresupuestoViewModel';
+import type { ExpenseCategory } from '@/modules/shared/finance/categories';
+import { DB_CATEGORY_NAMES } from '@/modules/shared/finance/categories';
+import { Tabs, router, useSegments } from 'expo-router';
+import React, { useRef, useState } from 'react';
+import {
+  Animated,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MidasColors } from '@/constants/theme';
-import { AddTransactionModal } from '@/modules/home/components/AddTransactionModal';
+import {
+  AddTransactionModal,
+  type MetaPickerItem,
+} from '@/modules/home/components/AddTransactionModal';
 
+type CategoriaRow = { ID: number; nombre: string };
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const segments = useSegments();
   const [modalVisible, setModalVisible] = useState(false);
+  const [metasPicker, setMetasPicker] = useState<MetaPickerItem[]>([]);
+  const [fabOpen, setFabOpen] = useState(false);
   const isProductosTab = segments[segments.length - 1] === 'productos';
+
+  const menuAnim = useRef(new Animated.Value(0)).current;
 
   const { agregarGasto, categorias } = usePresupuestoViewModel();
 
-  useEffect(() => {
-    PresupuestoRepository.limpiarCategorias();
-  }, []);
+  function toggleFab() {
+    const toValue = fabOpen ? 0 : 1;
+    Animated.spring(menuAnim, { toValue, useNativeDriver: true, friction: 7 }).start();
+    setFabOpen(!fabOpen);
+  }
+
+  function closeFab() {
+    Animated.spring(menuAnim, { toValue: 0, useNativeDriver: true, friction: 7 }).start();
+    setFabOpen(false);
+  }
+
+  function openTransactionModal() {
+    closeFab();
+    setMetasPicker(
+      getMetasSync()
+        .filter((m) => m.id != null)
+        .map((m) => ({ id: m.id!, nombre: m.nombre }))
+    );
+    setModalVisible(true);
+  }
+
+  function openScanner() {
+    closeFab();
+    router.push('/factura-scanner');
+  }
+
+  function openVoz() {
+    closeFab();
+    router.push('/voz-recorder');
+  }
+
+  const menuItemStyle = (offsetY: number) => ({
+    opacity: menuAnim,
+    transform: [
+      {
+        translateY: menuAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [offsetY, 0],
+        }),
+      },
+    ],
+  });
+
+  const fabBottom = insets.bottom + 48;
 
   return (
     <View style={styles.wrapper}>
@@ -72,40 +129,109 @@ export default function TabLayout() {
         />
       </Tabs>
 
+      {/* Backdrop que cierra el menú */}
+      {fabOpen && (
+        <Pressable style={StyleSheet.absoluteFill} onPress={closeFab} />
+      )}
+
       {!isProductosTab && (
-        <TouchableOpacity
-          style={[styles.fab, { bottom: insets.bottom + 48 }]}
-          activeOpacity={0.85}
-          onPress={() => setModalVisible(true)}
-        >
-          <Text style={styles.fabIcon}>+</Text>
-        </TouchableOpacity>
+        <>
+          {/* Opción 3: Registrar por voz */}
+          <Animated.View
+            style={[
+              styles.menuItem,
+              { bottom: fabBottom + 188 },
+              menuItemStyle(60),
+            ]}
+            pointerEvents={fabOpen ? 'auto' : 'none'}
+          >
+            <TouchableOpacity style={styles.menuLabel} onPress={openVoz} activeOpacity={0.8}>
+              <Text style={styles.menuLabelText}>Registrar por voz</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuDot} onPress={openVoz} activeOpacity={0.8}>
+              <IconSymbol name="mic.fill" size={22} color="#0F0F0F" />
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* Opción 2: Escanear factura */}
+          <Animated.View
+            style={[
+              styles.menuItem,
+              { bottom: fabBottom + 130 },
+              menuItemStyle(40),
+            ]}
+            pointerEvents={fabOpen ? 'auto' : 'none'}
+          >
+            <TouchableOpacity style={styles.menuLabel} onPress={openScanner} activeOpacity={0.8}>
+              <Text style={styles.menuLabelText}>Escanear factura</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuDot} onPress={openScanner} activeOpacity={0.8}>
+              <IconSymbol name="camera.fill" size={22} color="#0F0F0F" />
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* Opción 1: Nueva transacción */}
+          <Animated.View
+            style={[
+              styles.menuItem,
+              { bottom: fabBottom + 72 },
+              menuItemStyle(20),
+            ]}
+            pointerEvents={fabOpen ? 'auto' : 'none'}
+          >
+            <TouchableOpacity
+              style={styles.menuLabel}
+              onPress={openTransactionModal}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.menuLabelText}>Nueva transacción</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuDot}
+              onPress={openTransactionModal}
+              activeOpacity={0.8}
+            >
+              <IconSymbol name="plus" size={20} color="#0F0F0F" />
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* FAB principal */}
+          <TouchableOpacity
+            style={[styles.fab, { bottom: fabBottom }]}
+            activeOpacity={0.85}
+            onPress={toggleFab}
+          >
+            <Text style={[styles.fabIcon, fabOpen && styles.fabIconOpen]}>
+              {fabOpen ? '×' : '+'}
+            </Text>
+          </TouchableOpacity>
+        </>
       )}
 
       <AddTransactionModal
         visible={modalVisible}
+        metas={metasPicker}
         onClose={() => setModalVisible(false)}
-        onSubmit={async (tx) => {
-          const signedAmount = tx.type === 'expense' ? -tx.amount : tx.amount;
-          const categoriaId = tx.type === 'expense'
-            ? ((categorias as any[]).find((c) => c.nombre === tx.category)?.ID
-                ?? (categorias.length > 0 ? (categorias[0] as any).ID : null))
-            : null;
-
-          TransaccionRepository.insertar({
-            nombre: tx.description ?? tx.category ?? 'Transacción',
-            valor_transaccion: signedAmount,
-            categoria_id: categoriaId,
-            descripcion: tx.description,
-          });
-
-          transactionEvents.emit();
-
-          if (tx.type === 'expense' && categoriaId !== null) {
-            await agregarGasto(categoriaId, tx.amount);
-          }
-
-          setModalVisible(false);
+        onSubmit={(tx) => {
+          registrarTransaccion(
+            {
+              type: tx.type,
+              amount: tx.amount,
+              category: tx.category as ExpenseCategory | null,
+              description: tx.description,
+              metaId: tx.metaId,
+            },
+            {
+              resolveCategoriaId: (category) => {
+                const dbName = DB_CATEGORY_NAMES[category];
+                const found = (categorias as CategoriaRow[]).find(
+                  (c) => c.nombre === dbName
+                );
+                return found?.ID ?? null;
+              },
+              onPresupuestoGasto: agregarGasto,
+            }
+          );
         }}
       />
     </View>
@@ -130,11 +256,53 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.45,
     shadowRadius: 8,
     elevation: 8,
+    zIndex: 10,
   },
   fabIcon: {
     color: '#0F0F0F',
     fontSize: 30,
     fontWeight: '300',
     lineHeight: 34,
+  },
+  fabIconOpen: {
+    fontSize: 36,
+    lineHeight: 36,
+  },
+  menuItem: {
+    position: 'absolute',
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    zIndex: 9,
+  },
+  menuLabel: {
+    backgroundColor: MidasColors.cardBackground,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  menuLabelText: {
+    color: MidasColors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  menuDot: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: MidasColors.gold,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
   },
 });

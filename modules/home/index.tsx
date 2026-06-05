@@ -6,7 +6,6 @@ import { MidasColors } from '@/constants/theme';
 import { BalanceCard } from './components/BalanceCard';
 import { BudgetSection } from './components/BudgetSection';
 import { HomeHeader } from './components/HomeHeader';
-import { InsightCard } from './components/InsightCard';
 import { TransactionList } from './components/TransactionList';
 
 export default function HomeScreen() {
@@ -19,7 +18,6 @@ export default function HomeScreen() {
       >
         <HomeHeader />
         <BalanceCard />
-        <InsightCard tip="You're spending 5% more on dining this month compared to your average. Consider cooking at home this weekend!" />
         <BudgetSection />
         <TransactionList />
       </ScrollView>

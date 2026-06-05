@@ -1,6 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MidasColors } from '@/constants/theme';
 
 export function HomeHeader() {
@@ -15,7 +14,6 @@ export function HomeHeader() {
           <Text style={styles.name}>Alex Midas</Text>
         </View>
       </View>
-      <IconSymbol name="house.fill" size={26} color={MidasColors.gold} />
     </View>
   );
 }

@@ -39,7 +39,19 @@
           }
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Necesitamos acceso a tu cámara para escanear facturas."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Necesitamos acceso al micrófono para registrar gastos por voz."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

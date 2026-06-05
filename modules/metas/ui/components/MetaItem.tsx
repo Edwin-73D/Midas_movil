@@ -11,6 +11,8 @@ export default function MetaItem({
   onDelete: (id: number) => void;
   onEdit: (meta: Meta) => void;
 }) {
+  const progress = meta.porcentajeActual / 100;
+
   const handleDelete = () => {
     Alert.alert('Eliminar', '¿Seguro que quieres eliminar esta meta?', [
       { text: 'Cancelar' },
@@ -21,6 +23,13 @@ export default function MetaItem({
   return (
     <View style={styles.card}>
       <Text style={styles.title}>{meta.nombre}</Text>
+      <Text style={styles.subtitle}>
+        ${meta.monto.toFixed(2)} / ${meta.metaTotal.toFixed(2)} (
+        {meta.porcentajeActual.toFixed(1)}%)
+      </Text>
+      <View style={styles.track}>
+        <View style={[styles.fill, { width: `${Math.min(progress, 1) * 100}%` }]} />
+      </View>
 
       <View style={{ flexDirection: 'row', marginTop: 10 }}>
         <TouchableOpacity onPress={() => onEdit(meta)}>
@@ -46,5 +55,21 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  subtitle: {
+    color: '#AAA',
+    marginTop: 6,
+    fontSize: 13,
+  },
+  track: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#333',
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  fill: {
+    height: 6,
+    backgroundColor: '#FFD600',
   },
 });

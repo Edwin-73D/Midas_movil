@@ -1,5 +1,6 @@
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { MidasColors } from '@/constants/theme';
 import { TransaccionRepository, TransaccionRow } from '@/modules/transacciones/TransaccionRepository';
@@ -26,7 +27,7 @@ export function TransactionList() {
   const [transactions, setTransactions] = useState<TransaccionRow[]>([]);
 
   function load() {
-    setTransactions(TransaccionRepository.getRecientes());
+    setTransactions(TransaccionRepository.getRecientes(4));
   }
 
   useEffect(() => {
@@ -60,6 +61,17 @@ export function TransactionList() {
               </View>
             );
           })
+        )}
+
+
+        {transactions.length > 0 && (
+          <TouchableOpacity
+            style={styles.verMasButton}
+            onPress={() => router.push('/transaction-history')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.verMasLabel}>Ver más</Text>
+          </TouchableOpacity>
         )}
       </View>
     </View>
@@ -108,5 +120,16 @@ const styles = StyleSheet.create({
   },
   positive: {
     color: MidasColors.positive,
+  },
+  verMasButton: {
+    borderTopWidth: 1,
+    borderTopColor: '#2A2A2A',
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  verMasLabel: {
+    color: MidasColors.gold,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
