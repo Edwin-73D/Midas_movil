@@ -1,27 +1,55 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, StyleSheet, Text } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
+import { MidasColors } from '@/constants/theme';
 import type { Meta, MetaFormInput } from '@/modules/metas/domain/meta.model';
 
 export default function MetaForm({
+  visible,
   onSubmit,
+  onClose,
   initialData,
 }: {
+  visible: boolean;
   onSubmit: (meta: MetaFormInput) => void;
+  onClose: () => void;
   initialData?: Meta;
 }) {
   const [nombre, setNombre] = useState(initialData?.nombre || '');
-  const [metaTotal, setMetaTotal] = useState(
-    initialData?.metaTotal?.toString() || ''
-  );
+  const [metaTotal, setMetaTotal] = useState(initialData?.metaTotal?.toString() || '');
   const [descripcion, setDescripcion] = useState(initialData?.descripcion || '');
   const [fecha, setFecha] = useState(initialData?.fechaFinalizar || '');
+
+  const isEditing = !!initialData;
+
+  // Sync fields when initialData changes (modal reuse)
+  React.useEffect(() => {
+    setNombre(initialData?.nombre || '');
+    setMetaTotal(initialData?.metaTotal?.toString() || '');
+    setDescripcion(initialData?.descripcion || '');
+    setFecha(initialData?.fechaFinalizar || '');
+  }, [initialData]);
+
+  const isValid =
+    nombre.trim().length > 0 &&
+    fecha.trim().length > 0 &&
+    parseFloat(metaTotal) > 0;
 
   const handleSubmit = () => {
     const trimmedNombre = nombre.trim();
     const trimmedFecha = fecha.trim();
     if (!trimmedNombre || !metaTotal || !trimmedFecha) return;
-
     const parsedMetaTotal = Number(metaTotal);
     if (Number.isNaN(parsedMetaTotal) || parsedMetaTotal <= 0) return;
 
@@ -35,56 +63,247 @@ export default function MetaForm({
   };
 
   return (
-    <View style={styles.container}>
-      <TextInput
-        placeholder="Nombre"
-        value={nombre}
-        onChangeText={setNombre}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Meta Total"
-        value={metaTotal}
-        onChangeText={setMetaTotal}
-        keyboardType="numeric"
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Descripción (opcional)"
-        value={descripcion}
-        onChangeText={setDescripcion}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Fecha (YYYY-MM-DD)"
-        value={fecha}
-        onChangeText={setFecha}
-        style={styles.input}
-      />
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <Pressable style={styles.overlay} onPress={onClose} />
 
-      {initialData && (
-        <Text style={styles.accumulated}>
-          Ahorro acumulado: ${(initialData.monto ?? 0).toFixed(2)}
-        </Text>
-      )}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.sheetWrapper}
+        pointerEvents="box-none"
+      >
+        <View style={styles.sheet}>
+          {/* Drag handle */}
+          <View style={styles.handle} />
 
-      <Button title="Guardar" onPress={handleSubmit} />
-    </View>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>
+              {isEditing ? 'Editar meta' : 'Nueva meta'}
+            </Text>
+            <TouchableOpacity onPress={onClose} hitSlop={12} activeOpacity={0.7}>
+              <Text style={styles.closeIcon}>×</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {/* Accumulated savings (edit mode) */}
+            {isEditing && (
+              <View style={styles.accumulatedBanner}>
+                <Text style={styles.accumulatedLabel}>Ahorro acumulado</Text>
+                <Text style={styles.accumulatedValue}>
+                  $ {Math.round(initialData?.monto ?? 0).toLocaleString('es-CO')}
+                </Text>
+              </View>
+            )}
+
+            {/* Nombre */}
+            <Text style={styles.label}>Nombre</Text>
+            <TextInput
+              style={styles.input}
+              value={nombre}
+              onChangeText={setNombre}
+              placeholder="Ej. Viaje a Europa"
+              placeholderTextColor={MidasColors.textSecondary}
+              returnKeyType="next"
+              maxLength={60}
+            />
+
+            {/* Meta total */}
+            <Text style={styles.label}>Monto objetivo</Text>
+            <View style={styles.amountRow}>
+              <Text style={styles.currencySymbol}>$</Text>
+              <TextInput
+                style={styles.amountInput}
+                value={metaTotal}
+                onChangeText={setMetaTotal}
+                placeholder="0"
+                placeholderTextColor={MidasColors.textSecondary}
+                keyboardType="numeric"
+                returnKeyType="next"
+              />
+            </View>
+
+            {/* Fecha */}
+            <Text style={styles.label}>Fecha límite</Text>
+            <TextInput
+              style={styles.input}
+              value={fecha}
+              onChangeText={setFecha}
+              placeholder="AAAA-MM-DD"
+              placeholderTextColor={MidasColors.textSecondary}
+              keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
+              returnKeyType="next"
+              maxLength={10}
+            />
+
+            {/* Descripción */}
+            <Text style={styles.label}>Descripción <Text style={styles.optional}>(opcional)</Text></Text>
+            <TextInput
+              style={[styles.input, styles.multiline]}
+              value={descripcion}
+              onChangeText={setDescripcion}
+              placeholder="Cuéntanos un poco sobre esta meta..."
+              placeholderTextColor={MidasColors.textSecondary}
+              multiline
+              numberOfLines={3}
+              returnKeyType="done"
+              maxLength={200}
+            />
+
+            {/* Submit */}
+            <TouchableOpacity
+              style={[styles.submitButton, !isValid && styles.submitButtonDisabled]}
+              onPress={handleSubmit}
+              activeOpacity={0.85}
+              disabled={!isValid}
+            >
+              <Text style={styles.submitLabel}>
+                {isEditing ? 'Guardar cambios' : 'Crear meta'}
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { marginVertical: 16 },
-  input: {
-    backgroundColor: '#1E1E1E',
-    color: '#FFF',
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 8,
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
-  accumulated: {
-    color: '#AAA',
-    marginBottom: 12,
+  sheetWrapper: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: MidasColors.cardBackground,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 36,
+    maxHeight: '92%',
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#3A3A3A',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  title: {
+    color: MidasColors.textPrimary,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  closeIcon: {
+    color: MidasColors.textSecondary,
+    fontSize: 28,
+    lineHeight: 28,
+  },
+  accumulatedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: MidasColors.positive + '15',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: MidasColors.positive + '30',
+  },
+  accumulatedLabel: {
+    color: MidasColors.positive,
     fontSize: 13,
+    fontWeight: '500',
+  },
+  accumulatedValue: {
+    color: MidasColors.positive,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  label: {
+    color: MidasColors.textSecondary,
+    fontSize: 12,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    marginTop: 16,
+  },
+  optional: {
+    textTransform: 'none',
+    fontSize: 11,
+    fontWeight: '400',
+    color: '#555',
+    letterSpacing: 0,
+  },
+  input: {
+    backgroundColor: '#2A2A2A',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    color: MidasColors.textPrimary,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  multiline: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+    paddingTop: 13,
+  },
+  amountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2A2A2A',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  currencySymbol: {
+    color: MidasColors.gold,
+    fontSize: 20,
+    fontWeight: '400',
+    marginRight: 6,
+  },
+  amountInput: {
+    flex: 1,
+    color: MidasColors.textPrimary,
+    fontSize: 22,
+    fontWeight: '300',
+    paddingVertical: 13,
+  },
+  submitButton: {
+    backgroundColor: MidasColors.gold,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 28,
+    marginBottom: 4,
+  },
+  submitButtonDisabled: {
+    opacity: 0.4,
+  },
+  submitLabel: {
+    color: '#0F0F0F',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
