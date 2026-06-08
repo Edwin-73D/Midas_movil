@@ -15,6 +15,21 @@ import {
 import { MidasColors } from '@/constants/theme';
 import type { Meta, MetaFormInput } from '@/modules/metas/domain/meta.model';
 
+/** AAAA-MM-DD → DD/MM/AAAA (para mostrar en el campo) */
+function isoToDisplay(iso?: string): string {
+  if (!iso || iso.length !== 10) return '';
+  const [y, m, d] = iso.split('-');
+  if (!y || !m || !d) return '';
+  return `${d}/${m}/${y}`;
+}
+
+/** DD/MM/AAAA → AAAA-MM-DD (para enviar al servicio) */
+function displayToIso(display: string): string {
+  if (display.length !== 10) return '';
+  const [d, m, y] = display.split('/');
+  return `${y}-${m}-${d}`;
+}
+
 export default function MetaForm({
   visible,
   onSubmit,
@@ -29,7 +44,8 @@ export default function MetaForm({
   const [nombre, setNombre] = useState(initialData?.nombre || '');
   const [metaTotal, setMetaTotal] = useState(initialData?.metaTotal?.toString() || '');
   const [descripcion, setDescripcion] = useState(initialData?.descripcion || '');
-  const [fecha, setFecha] = useState(initialData?.fechaFinalizar || '');
+  // Estado en formato visual DD/MM/AAAA
+  const [fecha, setFecha] = useState(() => isoToDisplay(initialData?.fechaFinalizar));
 
   const isEditing = !!initialData;
 
@@ -38,18 +54,27 @@ export default function MetaForm({
     setNombre(initialData?.nombre || '');
     setMetaTotal(initialData?.metaTotal?.toString() || '');
     setDescripcion(initialData?.descripcion || '');
-    setFecha(initialData?.fechaFinalizar || '');
+    setFecha(isoToDisplay(initialData?.fechaFinalizar));
   }, [initialData]);
 
   const isValid =
     nombre.trim().length > 0 &&
-    fecha.trim().length > 0 &&
+    fecha.length === 10 &&
     parseFloat(metaTotal) > 0;
+
+  const handleFechaChange = (raw: string) => {
+    // Solo dígitos
+    const digits = raw.replace(/\D/g, '');
+    // Insertar separadores: DD/MM/AAAA
+    let formatted = digits;
+    if (digits.length > 2) formatted = digits.slice(0, 2) + '/' + digits.slice(2);
+    if (digits.length > 4) formatted = formatted.slice(0, 5) + '/' + formatted.slice(5);
+    setFecha(formatted.slice(0, 10));
+  };
 
   const handleSubmit = () => {
     const trimmedNombre = nombre.trim();
-    const trimmedFecha = fecha.trim();
-    if (!trimmedNombre || !metaTotal || !trimmedFecha) return;
+    if (!trimmedNombre || !metaTotal || fecha.length !== 10) return;
     const parsedMetaTotal = Number(metaTotal);
     if (Number.isNaN(parsedMetaTotal) || parsedMetaTotal <= 0) return;
 
@@ -58,7 +83,8 @@ export default function MetaForm({
       nombre: trimmedNombre,
       metaTotal: parsedMetaTotal,
       descripcion: descripcion.trim() || undefined,
-      fechaFinalizar: trimmedFecha,
+      // El servicio y la BD esperan AAAA-MM-DD
+      fechaFinalizar: displayToIso(fecha),
     });
   };
 
@@ -133,10 +159,10 @@ export default function MetaForm({
             <TextInput
               style={styles.input}
               value={fecha}
-              onChangeText={setFecha}
-              placeholder="AAAA-MM-DD"
+              onChangeText={handleFechaChange}
+              placeholder="DD/MM/AAAA"
               placeholderTextColor={MidasColors.textSecondary}
-              keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
+              keyboardType="number-pad"
               returnKeyType="next"
               maxLength={10}
             />

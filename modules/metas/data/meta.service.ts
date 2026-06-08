@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 
 import { db } from '@/db/client';
 import expo from '@/db/client';
-import { meta, metaAporte } from '@/db/schema';
+import { meta, metaAporte, transaccion } from '@/db/schema';
 import type { Meta, MetaFormInput } from '@/modules/metas/domain/meta.model';
 import { calcPorcentajeActual } from '@/modules/metas/domain/meta.utils';
 import { metaEvents } from '@/modules/metas/metaEvents';
@@ -96,7 +96,16 @@ export const updateMeta = (metaData: MetaFormInput) => {
 
 export const deleteMeta = (id: number) => {
   if (!db) return;
-  db.delete(meta).where(eq(meta.id, id)).run();
+
+  // transaccion.meta_id no tiene onDelete definido en el esquema, por lo que
+  // SQLite rechaza el DELETE con FOREIGN KEY constraint failed.
+  // Se anula manualmente el vínculo antes de eliminar la meta (equivale a onDelete: 'set null').
+  // meta_aporte.meta_id sí tiene onDelete: 'cascade' y se elimina automáticamente.
+  expo.withTransactionSync(() => {
+    db!.update(transaccion).set({ metaId: null }).where(eq(transaccion.metaId, id)).run();
+    db!.delete(meta).where(eq(meta.id, id)).run();
+  });
+
   metaEvents.emit();
 };
 
