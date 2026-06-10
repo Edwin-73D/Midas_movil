@@ -25,7 +25,6 @@ type CategoriaRow = { ID: number; nombre: string };
 const CATEGORIES: { label: ExpenseCategory; color: string }[] = [
   { label: 'Needs', color: MidasColors.needsColor },
   { label: 'Wants', color: MidasColors.wantsColor },
-  { label: 'Savings', color: MidasColors.savingsColor },
 ];
 
 interface Props {

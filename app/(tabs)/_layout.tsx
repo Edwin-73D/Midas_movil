@@ -1,5 +1,6 @@
 import { registrarTransaccion } from '@/modules/finanzas/registrar-transaccion.service';
 import { getMetasSync } from '@/modules/metas/data/meta.service';
+import { getProductosSync } from '@/modules/productos/data/producto.service';
 import { usePresupuestoViewModel } from '@/modules/presupuesto/PresupuestoViewModel';
 import type { ExpenseCategory } from '@/modules/shared/finance/categories';
 import { DB_CATEGORY_NAMES } from '@/modules/shared/finance/categories';
@@ -21,6 +22,7 @@ import { MidasColors } from '@/constants/theme';
 import {
   AddTransactionModal,
   type MetaPickerItem,
+  type ProductoPickerItem,
 } from '@/modules/home/components/AddTransactionModal';
 
 type CategoriaRow = { ID: number; nombre: string };
@@ -30,6 +32,7 @@ export default function TabLayout() {
   const segments = useSegments();
   const [modalVisible, setModalVisible] = useState(false);
   const [metasPicker, setMetasPicker] = useState<MetaPickerItem[]>([]);
+  const [productosPicker, setProductosPicker] = useState<ProductoPickerItem[]>([]);
   const [fabOpen, setFabOpen] = useState(false);
   const isProductosTab = segments[segments.length - 1] === 'productos';
 
@@ -55,7 +58,16 @@ export default function TabLayout() {
         .filter((m) => m.id != null)
         .map((m) => ({ id: m.id!, nombre: m.nombre }))
     );
+    setProductosPicker(
+      getProductosSync()
+        .filter((p) => p.id != null)
+        .map((p) => ({ id: p.id!, nombre: p.nombre ?? 'Producto' }))
+    );
     setModalVisible(true);
+  }
+
+  function openCreateProducto() {
+    router.push('/productos?new=1');
   }
 
   function openScanner() {
@@ -211,6 +223,8 @@ export default function TabLayout() {
       <AddTransactionModal
         visible={modalVisible}
         metas={metasPicker}
+        productos={productosPicker}
+        onCreateProducto={openCreateProducto}
         onClose={() => setModalVisible(false)}
         onSubmit={(tx) => {
           registrarTransaccion(
@@ -220,6 +234,7 @@ export default function TabLayout() {
               category: tx.category as ExpenseCategory | null,
               description: tx.description,
               metaId: tx.metaId,
+              productoFinancieroId: tx.productoFinancieroId,
             },
             {
               resolveCategoriaId: (category) => {

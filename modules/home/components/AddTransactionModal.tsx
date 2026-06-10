@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -28,22 +28,11 @@ export interface NewTransaction {
 
 export type MetaPickerItem = { id: number; nombre: string };
 
-/** Datos precargados al abrir el modal en modo edición. */
-export interface InitialTransactionData {
-  type: TransactionType;
-  amount: string;
-  category: Category | null;
-  description: string;
-  metaId?: number;
-}
-
 interface Props {
   visible: boolean;
   onClose: () => void;
   onSubmit: (tx: NewTransaction) => void;
   metas: MetaPickerItem[];
-  /** Si se provee, el modal abre en modo edición con los campos precargados. */
-  initialData?: InitialTransactionData;
 }
 
 const CATEGORIES: { label: Category; color: string }[] = [
@@ -52,30 +41,12 @@ const CATEGORIES: { label: Category; color: string }[] = [
   { label: 'Savings', color: MidasColors.savingsColor },
 ];
 
-export function AddTransactionModal({ visible, onClose, onSubmit, metas, initialData }: Props) {
+export function AddTransactionModal({ visible, onClose, onSubmit, metas }: Props) {
   const [type, setType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category | null>(null);
   const [selectedMetaId, setSelectedMetaId] = useState<number | null>(null);
   const [description, setDescription] = useState('');
-
-  const isEditing = initialData !== undefined;
-
-  // Sincronizar formulario al abrir el modal (modo creación o edición)
-  useEffect(() => {
-    if (visible) {
-      if (initialData) {
-        setType(initialData.type);
-        setAmount(initialData.amount);
-        setCategory(initialData.category);
-        setSelectedMetaId(initialData.metaId ?? null);
-        setDescription(initialData.description);
-      } else {
-        resetForm();
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]);
 
   const isSavings = type === 'expense' && category === 'Savings';
   // Para Savings, solo se requiere seleccionar una meta.
@@ -132,7 +103,7 @@ export function AddTransactionModal({ visible, onClose, onSubmit, metas, initial
       >
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <Text style={styles.title}>{isEditing ? 'Editar transacción' : 'Nueva transacción'}</Text>
+            <Text style={styles.title}>Nueva transacción</Text>
             <TouchableOpacity onPress={handleClose} hitSlop={12}>
               <Text style={styles.closeIcon}>×</Text>
             </TouchableOpacity>
