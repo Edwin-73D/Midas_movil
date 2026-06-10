@@ -47,14 +47,17 @@ export const getMetasSync = (): Meta[] => {
   return db.select().from(meta).all().map(mapRowToMeta);
 };
 
-export const getResumen = (callback: (total: number, count: number) => void) => {
+export const getResumen = (
+  callback: (total: number, count: number, totalGoal: number) => void
+) => {
   if (!db) {
-    callback(0, 0);
+    callback(0, 0, 0);
     return;
   }
-  const metas = db.select().from(meta).all();
-  const total = metas.reduce((acc, m) => acc + m.metaTotal, 0);
-  callback(total, metas.length);
+  const rows = db.select().from(meta).all();
+  const total     = rows.reduce((acc, m) => acc + (m.monto     ?? 0), 0);
+  const totalGoal = rows.reduce((acc, m) => acc + (m.metaTotal ?? 0), 0);
+  callback(total, rows.length, totalGoal);
 };
 
 export const insertMeta = (metaData: MetaFormInput) => {

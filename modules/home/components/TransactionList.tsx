@@ -1,10 +1,31 @@
-import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { router } from 'expo-router';
 
 import { MidasColors } from '@/constants/theme';
+import { eliminarTransaccion } from '@/modules/finanzas/eliminar-transaccion.service';
+import { editarTransaccion } from '@/modules/finanzas/editar-transaccion.service';
+import { getMetasSync } from '@/modules/metas/data/meta.service';
+import { usePresupuestoViewModel } from '@/modules/presupuesto/PresupuestoViewModel';
+import { DB_CATEGORY_NAMES } from '@/modules/shared/finance/categories';
+import type { ExpenseCategory } from '@/modules/shared/finance/categories';
 import { TransaccionRepository, TransaccionRow } from '@/modules/transacciones/TransaccionRepository';
 import { transactionEvents } from '@/modules/transacciones/transactionEvents';
+import {
+  AddTransactionModal,
+  type InitialTransactionData,
+  type MetaPickerItem,
+  type NewTransaction,
+} from './AddTransactionModal';
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatDateTime(raw: string): string {
   const date = new Date(raw.replace(' ', 'T'));
@@ -17,14 +38,45 @@ function formatDateTime(raw: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function formatAmount(amount: number): string {
+function formatAmount(amount: number, tipo: string | null): string {
   const abs = Math.abs(amount).toFixed(2);
-  return amount >= 0 ? `+$${abs}` : `-$${abs}`;
+  return tipo === 'income' ? `+$${abs}` : `-$${abs}`;
 }
 
+type Category = 'Needs' | 'Wants' | 'Savings';
+
+function buildInitialData(tx: TransaccionRow, categorias: any[]): InitialTransactionData {
+  const isIncome = tx.tipo === 'income';
+  const isSaving = tx.tipo === 'saving';
+
+  let category: Category | null = null;
+  if (isSaving) {
+    category = 'Savings';
+  } else if (!isIncome && tx.categoria_id != null) {
+    const cat = categorias.find((c: any) => c.ID === tx.categoria_id);
+    const nombre = (cat?.nombre ?? '').toLowerCase();
+    if (nombre === 'needs') category = 'Needs';
+    else if (nombre === 'wants') category = 'Wants';
+  }
+
+  return {
+    type: isIncome ? 'income' : 'expense',
+    amount: String(tx.valor_transaccion),
+    category,
+    description: tx.descripcion ?? tx.nombre ?? '',
+    metaId: tx.meta_id ?? undefined,
+  };
+}
+
+// ─── Componente ───────────────────────────────────────────────────────────────
 
 export function TransactionList() {
   const [transactions, setTransactions] = useState<TransaccionRow[]>([]);
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [editTx, setEditTx] = useState<TransaccionRow | null>(null);
+  const [metasPicker, setMetasPicker] = useState<MetaPickerItem[]>([]);
+
+  const { agregarGasto, categorias, cargarCategorias } = usePresupuestoViewModel();
 
   function load() {
     setTransactions(TransaccionRepository.getRecientes(4));
@@ -32,37 +84,148 @@ export function TransactionList() {
 
   useEffect(() => {
     load();
+    cargarCategorias();
     return transactionEvents.subscribe(load);
   }, []);
 
+  function openMenu(id: number) {
+    setOpenMenuId(id);
+  }
+
+  function closeMenu() {
+    setOpenMenuId(null);
+  }
+
+  function handleEdit(tx: TransaccionRow) {
+    closeMenu();
+    setMetasPicker(
+      getMetasSync()
+        .filter((m) => m.id != null)
+        .map((m) => ({ id: m.id!, nombre: m.nombre }))
+    );
+    setEditTx(tx);
+  }
+
+  function handleDelete(tx: TransaccionRow) {
+    closeMenu();
+    Alert.alert(
+      'Eliminar transacción',
+      '¿Seguro que quieres eliminar esta transacción? Esta acción no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => {
+            eliminarTransaccion(tx.ID, {
+              onPresupuestoGasto: agregarGasto,
+            });
+          },
+        },
+      ]
+    );
+  }
+
+  function handleEditSubmit(newTx: NewTransaction) {
+    if (!editTx) return;
+    editarTransaccion(
+      editTx.ID,
+      {
+        type: newTx.type,
+        amount: newTx.amount,
+        category:
+          newTx.category === 'Savings'
+            ? null
+            : (newTx.category as ExpenseCategory | null),
+        description: newTx.description,
+        metaId: newTx.metaId,
+      },
+      {
+        resolveCategoriaId: (cat) => {
+          const dbName = DB_CATEGORY_NAMES[cat];
+          const found = (categorias as any[]).find((c) => c.nombre === dbName);
+          return found?.ID ?? null;
+        },
+        onPresupuestoGasto: agregarGasto,
+      }
+    );
+    setEditTx(null);
+  }
+
   return (
-    <View>
+    <View style={{ overflow: 'visible' }}>
       <Text style={styles.sectionTitle}>Recent Transactions</Text>
 
-      <View style={styles.card}>
+      {/* Backdrop que cierra el menú al tocar fuera */}
+      {openMenuId !== null && (
+        <Pressable style={StyleSheet.absoluteFill} onPress={closeMenu} />
+      )}
+
+      <View style={[styles.card, { overflow: 'visible' }]}>
         {transactions.length === 0 ? (
-          <Text style={[styles.txDate, { paddingVertical: 14 }]}>No hay transacciones aún.</Text>
+          <Text style={[styles.txDate, { paddingVertical: 14 }]}>
+            No hay transacciones aún.
+          </Text>
         ) : (
           transactions.map((tx, index) => {
             const displayName = tx.nombre || tx.descripcion || 'Transacción';
+            const isPositive = tx.tipo === 'income';
+            const menuOpen = openMenuId === tx.ID;
+
             return (
               <View
                 key={tx.ID}
-                style={[styles.row, index < transactions.length - 1 && styles.rowBorder]}
+                style={[
+                  styles.row,
+                  index < transactions.length - 1 && styles.rowBorder,
+                  { overflow: 'visible', zIndex: menuOpen ? 10 : 1 },
+                ]}
               >
                 <View style={styles.info}>
                   <Text style={styles.txName}>{displayName}</Text>
                   <Text style={styles.txDate}>{formatDateTime(tx.fecha_hora)}</Text>
                 </View>
 
-                <Text style={[styles.amount, tx.valor_transaccion >= 0 && styles.positive]}>
-                  {formatAmount(tx.valor_transaccion)}
+                <Text style={[styles.amount, isPositive && styles.positive]}>
+                  {formatAmount(tx.valor_transaccion, tx.tipo)}
                 </Text>
+
+                {/* ── Botón ⋮ ───────────────────────────────────────── */}
+                <TouchableOpacity
+                  style={styles.menuButton}
+                  onPress={() => (menuOpen ? closeMenu() : openMenu(tx.ID))}
+                  hitSlop={8}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.menuDots}>⋮</Text>
+                </TouchableOpacity>
+
+                {/* ── Dropdown menu ──────────────────────────────────── */}
+                {menuOpen && (
+                  <View style={styles.dropdown}>
+                    <TouchableOpacity
+                      style={styles.dropdownItem}
+                      onPress={() => handleEdit(tx)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.dropdownText}>Editar</Text>
+                    </TouchableOpacity>
+                    <View style={styles.dropdownDivider} />
+                    <TouchableOpacity
+                      style={styles.dropdownItem}
+                      onPress={() => handleDelete(tx)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.dropdownText, styles.dropdownTextDanger]}>
+                        Eliminar
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             );
           })
         )}
-
 
         {transactions.length > 0 && (
           <TouchableOpacity
@@ -74,9 +237,21 @@ export function TransactionList() {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Modal de edición */}
+      <AddTransactionModal
+        visible={editTx !== null}
+        metas={metasPicker}
+        isEditing
+        initialData={editTx ? buildInitialData(editTx, categorias) : undefined}
+        onClose={() => setEditTx(null)}
+        onSubmit={handleEditSubmit}
+      />
     </View>
   );
 }
+
+// ─── Estilos ─────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   sectionTitle: {
@@ -94,7 +269,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
-    gap: 12,
+    gap: 8,
   },
   rowBorder: {
     borderBottomWidth: 1,
@@ -121,6 +296,49 @@ const styles = StyleSheet.create({
   positive: {
     color: MidasColors.positive,
   },
+  // ── Menú ⋮ ──────────────────────────────────────────────────────────────
+  menuButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  menuDots: {
+    color: MidasColors.textSecondary,
+    fontSize: 20,
+    lineHeight: 22,
+  },
+  dropdown: {
+    position: 'absolute',
+    right: 0,
+    top: 36,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
+    minWidth: 130,
+    zIndex: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  dropdownItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  dropdownDivider: {
+    height: 1,
+    backgroundColor: '#3A3A3A',
+  },
+  dropdownText: {
+    color: MidasColors.textPrimary,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  dropdownTextDanger: {
+    color: '#E74C3C',
+  },
+  // ── Ver más ─────────────────────────────────────────────────────────────
   verMasButton: {
     borderTopWidth: 1,
     borderTopColor: '#2A2A2A',

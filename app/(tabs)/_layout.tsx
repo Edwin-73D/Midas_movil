@@ -1,11 +1,15 @@
 import { registrarTransaccion } from '@/modules/finanzas/registrar-transaccion.service';
+import {
+  crearPlantillaRecurrente,
+  procesarRecurrentes,
+} from '@/modules/finanzas/transaccion-recurrente.service';
 import { getMetasSync } from '@/modules/metas/data/meta.service';
 import { getProductosSync } from '@/modules/productos/data/producto.service';
 import { usePresupuestoViewModel } from '@/modules/presupuesto/PresupuestoViewModel';
 import type { ExpenseCategory } from '@/modules/shared/finance/categories';
 import { DB_CATEGORY_NAMES } from '@/modules/shared/finance/categories';
 import { Tabs, router, useSegments } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Pressable,
@@ -39,6 +43,11 @@ export default function TabLayout() {
   const menuAnim = useRef(new Animated.Value(0)).current;
 
   const { agregarGasto, categorias } = usePresupuestoViewModel();
+
+  // Al montar el layout (cada apertura de la app), genera las transacciones vencidas
+  useEffect(() => {
+    procesarRecurrentes({ onPresupuestoGasto: agregarGasto });
+  }, []);
 
   function toggleFab() {
     const toValue = fabOpen ? 0 : 1;
@@ -227,6 +236,14 @@ export default function TabLayout() {
         onCreateProducto={openCreateProducto}
         onClose={() => setModalVisible(false)}
         onSubmit={(tx) => {
+          // Resolver categoriaId aquí para reutilizarlo en la plantilla recurrente
+          const resolvedCategoriaId =
+            tx.type === 'expense' && tx.category && tx.category !== 'Savings'
+              ? ((categorias as CategoriaRow[]).find(
+                  (c) => c.nombre === DB_CATEGORY_NAMES[tx.category as ExpenseCategory]
+                )?.ID ?? null)
+              : null;
+
           registrarTransaccion(
             {
               type: tx.type,
@@ -237,16 +254,29 @@ export default function TabLayout() {
               productoFinancieroId: tx.productoFinancieroId,
             },
             {
-              resolveCategoriaId: (category) => {
-                const dbName = DB_CATEGORY_NAMES[category];
-                const found = (categorias as CategoriaRow[]).find(
-                  (c) => c.nombre === dbName
-                );
-                return found?.ID ?? null;
-              },
+              resolveCategoriaId: () => resolvedCategoriaId,
               onPresupuestoGasto: agregarGasto,
             }
           );
+
+          // Si el usuario marcó la transacción como recurrente, guardar la plantilla
+          if (tx.recurrente && tx.frecuencia) {
+            const tipoRec =
+              tx.type === 'income'
+                ? 'income'
+                : tx.metaId
+                  ? 'saving'
+                  : 'expense';
+            crearPlantillaRecurrente({
+              nombre: tx.description || null,
+              valor_transaccion: tx.amount,
+              tipo: tipoRec,
+              categoria_id: resolvedCategoriaId,
+              meta_id: tx.metaId ?? null,
+              descripcion: tx.description || null,
+              frecuencia: tx.frecuencia,
+            });
+          }
         }}
       />
     </View>

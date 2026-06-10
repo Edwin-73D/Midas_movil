@@ -15,12 +15,14 @@ export const useMetas = () => {
   const [metas, setMetas] = useState<Meta[]>([]);
   const [total, setTotal] = useState(0);
   const [count, setCount] = useState(0);
+  const [totalGoal, setTotalGoal] = useState(0);
 
   const loadData = useCallback(() => {
     getAllMetas(setMetas);
-    getResumen((t, c) => {
+    getResumen((t, c, tg) => {
       setTotal(t);
       setCount(c);
+      setTotalGoal(tg);
     });
   }, []);
 
@@ -60,6 +62,7 @@ export const useMetas = () => {
   return {
     metas,
     total,
+    totalGoal,
     count,
     addMeta,
     editMeta,

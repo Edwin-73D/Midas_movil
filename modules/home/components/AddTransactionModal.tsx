@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -18,21 +19,39 @@ import { MidasColors } from '@/constants/theme';
 type TransactionType = 'income' | 'expense';
 type Category = 'Needs' | 'Wants' | 'Savings';
 
+export type Frecuencia = 'semanal' | 'mensual';
+
 export interface NewTransaction {
   type: TransactionType;
   amount: number;
   category: Category | null;
   description: string;
   metaId?: number;
+  recurrente?: boolean;
+  frecuencia?: Frecuencia;
 }
 
 export type MetaPickerItem = { id: number; nombre: string };
+export type ProductoPickerItem = { id: number; nombre: string };
+
+export interface InitialTransactionData {
+  type: TransactionType;
+  amount: string;
+  category: Category | null;
+  description: string;
+  metaId?: number;
+}
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   onSubmit: (tx: NewTransaction) => void;
   metas: MetaPickerItem[];
+  // props opcionales para compatibilidad con _layout y modo edición
+  productos?: ProductoPickerItem[];
+  onCreateProducto?: () => void;
+  initialData?: InitialTransactionData;
+  isEditing?: boolean;
 }
 
 const CATEGORIES: { label: Category; color: string }[] = [
@@ -41,12 +60,32 @@ const CATEGORIES: { label: Category; color: string }[] = [
   { label: 'Savings', color: MidasColors.savingsColor },
 ];
 
-export function AddTransactionModal({ visible, onClose, onSubmit, metas }: Props) {
+export function AddTransactionModal({
+  visible,
+  onClose,
+  onSubmit,
+  metas,
+  initialData,
+  isEditing = false,
+}: Props) {
   const [type, setType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category | null>(null);
   const [selectedMetaId, setSelectedMetaId] = useState<number | null>(null);
   const [description, setDescription] = useState('');
+  const [recurrente, setRecurrente] = useState(false);
+  const [frecuencia, setFrecuencia] = useState<Frecuencia>('mensual');
+
+  // Poblar el formulario cuando se abre en modo edición
+  useEffect(() => {
+    if (visible && initialData) {
+      setType(initialData.type);
+      setAmount(initialData.amount);
+      setCategory(initialData.category);
+      setSelectedMetaId(initialData.metaId ?? null);
+      setDescription(initialData.description);
+    }
+  }, [visible, initialData]);
 
   const isSavings = type === 'expense' && category === 'Savings';
   // Para Savings, solo se requiere seleccionar una meta.
@@ -65,6 +104,8 @@ export function AddTransactionModal({ visible, onClose, onSubmit, metas }: Props
         category,
         description,
         metaId: selectedMetaId ?? undefined,
+        recurrente: recurrente || undefined,
+        frecuencia: recurrente ? frecuencia : undefined,
       });
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo guardar');
@@ -80,6 +121,8 @@ export function AddTransactionModal({ visible, onClose, onSubmit, metas }: Props
     setCategory(null);
     setSelectedMetaId(null);
     setDescription('');
+    setRecurrente(false);
+    setFrecuencia('mensual');
   }
 
   function handleClose() {
@@ -103,7 +146,7 @@ export function AddTransactionModal({ visible, onClose, onSubmit, metas }: Props
       >
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <Text style={styles.title}>Nueva transacción</Text>
+            <Text style={styles.title}>{isEditing ? 'Editar transacción' : 'Nueva transacción'}</Text>
             <TouchableOpacity onPress={handleClose} hitSlop={12}>
               <Text style={styles.closeIcon}>×</Text>
             </TouchableOpacity>
@@ -208,7 +251,7 @@ export function AddTransactionModal({ visible, onClose, onSubmit, metas }: Props
                             <Text
                               style={[styles.chipLabel, selected && styles.chipLabelActive]}
                             >
-                              {m.nombre}
+                              {m.nombre || `Meta ${m.id}`}
                             </Text>
                           </TouchableOpacity>
                         );
@@ -230,6 +273,60 @@ export function AddTransactionModal({ visible, onClose, onSubmit, metas }: Props
             returnKeyType="done"
             maxLength={120}
           />
+
+          {/* ── Recurrencia (solo al crear, no en modo edición) ── */}
+          {!isEditing && (
+            <>
+              <View style={styles.recurRow}>
+                <View style={styles.recurLabelGroup}>
+                  <Text style={styles.recurLabel}>Transacción recurrente</Text>
+                  <Text style={styles.recurSubLabel}>
+                    Se registrará automáticamente según la frecuencia elegida
+                  </Text>
+                </View>
+                <Switch
+                  value={recurrente}
+                  onValueChange={setRecurrente}
+                  trackColor={{ false: '#3A3A3A', true: MidasColors.gold }}
+                  thumbColor={recurrente ? '#0F0F0F' : '#888888'}
+                />
+              </View>
+
+              {recurrente && (
+                <>
+                  <Text style={styles.label}>Frecuencia</Text>
+                  <View style={styles.chipRow}>
+                    {(['semanal', 'mensual'] as Frecuencia[]).map((f) => {
+                      const selected = frecuencia === f;
+                      return (
+                        <TouchableOpacity
+                          key={f}
+                          style={[
+                            styles.chip,
+                            selected && {
+                              backgroundColor: MidasColors.gold,
+                              borderColor: MidasColors.gold,
+                            },
+                          ]}
+                          onPress={() => setFrecuencia(f)}
+                          activeOpacity={0.8}
+                        >
+                          <Text
+                            style={[
+                              styles.chipLabel,
+                              selected && { color: '#0F0F0F' },
+                            ]}
+                          >
+                            {f.charAt(0).toUpperCase() + f.slice(1)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
+            </>
+          )}
 
           <TouchableOpacity
             style={[styles.submitButton, !isValid && styles.submitButtonDisabled]}
@@ -368,6 +465,30 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     color: MidasColors.textPrimary,
     fontSize: 15,
+  },
+  recurRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#2A2A2A',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  recurLabelGroup: {
+    flex: 1,
+    gap: 2,
+  },
+  recurLabel: {
+    color: MidasColors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  recurSubLabel: {
+    color: MidasColors.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
   },
   submitButton: {
     backgroundColor: MidasColors.gold,

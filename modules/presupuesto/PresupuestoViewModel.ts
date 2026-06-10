@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { actualizarMontoReal, PresupuestoRepository } from "./PresupuestoRepository";
+import { presupuestoEvents } from "./presupuestoEvents";
 
 export const usePresupuestoViewModel = () => {
   const [categorias, setCategorias] = useState<any[]>([]);
@@ -14,79 +15,45 @@ export const usePresupuestoViewModel = () => {
   };
 
   const agregarGasto = async (categoriaId: number, monto: number) => {
-    console.log("🔥 ENTRANDO A agregarGasto");
-
     await actualizarMontoReal(categoriaId, monto);
-
-    console.log("🔥 DESPUÉS DE actualizarMontoReal");
-
     await cargarCategorias();
-  };
-
-  const generarPresupuesto = (ingreso: number, metodo: string) => {
-    let distribucion;
-
-    if (metodo === "50-30-20") {
-      distribucion = [50, 30, 20];
-    } else if (metodo === "60-20-20") {
-      distribucion = [60, 20, 20];
-    }
-
-    if (!distribucion) return;
-
-    // limpiar antes de insertar
-    PresupuestoRepository.limpiarCategorias();
-
-    const categorias = [
-      { nombre: "Needs", porcentaje: distribucion[0] },
-      { nombre: "Wants", porcentaje: distribucion[1] },
-      { nombre: "Savings & Debt", porcentaje: distribucion[2] },
-    ];
-
-    categorias.forEach((cat) => {
-      const monto = (ingreso * cat.porcentaje) / 100;
-
-      PresupuestoRepository.insertarCategoria({
-        nombre: cat.nombre,
-        porcentaje: cat.porcentaje,
-        monto_esperado: monto,
-        monto_real: 0,
-        descripcion: "",
-      });
-    });
-
-    // 🔄 recargar datos
-    cargarCategorias();
+    presupuestoEvents.emit();
   };
 
   /**
-   * Genera un presupuesto con categorías completamente personalizadas.
+   * Genera el presupuesto a partir de montos directos por categoría.
    * Reemplaza el contenido actual de la tabla Categoria.
-   * No toca la lógica de los métodos predefinidos 50-30-20 / 60-20-20.
+   * El porcentaje se calcula automáticamente sobre el total.
    */
-  const generarPresupuestoPersonalizado = (
-    ingreso: number,
-    cats: { nombre: string; porcentaje: number }[]
+  const generarPresupuestoDesdeMontos = (
+    cats: { nombre: string; monto: number }[]
   ) => {
     PresupuestoRepository.limpiarCategorias();
 
+    const totalMonto = cats.reduce((s, c) => s + c.monto, 0);
+
     cats.forEach((cat) => {
+      const porcentaje =
+        totalMonto > 0
+          ? Math.round((cat.monto / totalMonto) * 1000) / 10
+          : 0;
+
       PresupuestoRepository.insertarCategoria({
         nombre: cat.nombre,
-        porcentaje: cat.porcentaje,
-        monto_esperado: (ingreso * cat.porcentaje) / 100,
+        porcentaje,
+        monto_esperado: cat.monto,
         monto_real: 0,
         descripcion: '',
       });
     });
 
     cargarCategorias();
+    presupuestoEvents.emit();
   };
 
   return {
     categorias,
-    generarPresupuesto,
-    generarPresupuestoPersonalizado,
+    generarPresupuestoDesdeMontos,
     agregarGasto,
     cargarCategorias,
   };

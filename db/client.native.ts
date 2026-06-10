@@ -141,6 +141,43 @@ expo.execSync(`
   )
 `);
 
+// ─── Transacciones recurrentes ───────────────────────────────────────────────
+
+expo.execSync(`
+  CREATE TABLE IF NOT EXISTS transaccion_recurrente (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre      TEXT,
+    valor_transaccion REAL NOT NULL,
+    tipo        TEXT NOT NULL,
+    categoria_id INTEGER,
+    meta_id     INTEGER,
+    descripcion TEXT,
+    frecuencia  TEXT NOT NULL,
+    proxima_fecha TEXT NOT NULL,
+    activa      INTEGER DEFAULT 1
+  )
+`);
+
+// Limpiar categorías duplicadas de generaciones anteriores.
+// Primero anula las FK en transacciones que apunten a los duplicados, luego borra.
+try {
+  expo.execSync(`
+    UPDATE transaccion SET categoria_id = NULL
+    WHERE categoria_id IN (
+      SELECT ID FROM Categoria WHERE ID NOT IN (
+        SELECT MAX(ID) FROM Categoria GROUP BY nombre
+      )
+    )
+  `);
+  expo.execSync(`
+    DELETE FROM Categoria WHERE ID NOT IN (
+      SELECT MAX(ID) FROM Categoria GROUP BY nombre
+    )
+  `);
+} catch {
+  // Si falla (tabla vacía u otro motivo), no bloquear el arranque
+}
+
 /** Drizzle ORM instance (metas module, typed queries). */
 export const db: ExpoSQLiteDatabase<typeof schema> = drizzle(expo, { schema });
 
