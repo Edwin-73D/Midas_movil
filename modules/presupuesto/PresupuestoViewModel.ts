@@ -59,7 +59,35 @@ export const usePresupuestoViewModel = () => {
     cargarCategorias();
   };
 
-  return { categorias, generarPresupuesto, agregarGasto, cargarCategorias };
+  /**
+   * Genera un presupuesto con categorías completamente personalizadas.
+   * Reemplaza el contenido actual de la tabla Categoria.
+   * No toca la lógica de los métodos predefinidos 50-30-20 / 60-20-20.
+   */
+  const generarPresupuestoPersonalizado = (
+    ingreso: number,
+    cats: { nombre: string; porcentaje: number }[]
+  ) => {
+    PresupuestoRepository.limpiarCategorias();
 
-  
+    cats.forEach((cat) => {
+      PresupuestoRepository.insertarCategoria({
+        nombre: cat.nombre,
+        porcentaje: cat.porcentaje,
+        monto_esperado: (ingreso * cat.porcentaje) / 100,
+        monto_real: 0,
+        descripcion: '',
+      });
+    });
+
+    cargarCategorias();
+  };
+
+  return {
+    categorias,
+    generarPresupuesto,
+    generarPresupuestoPersonalizado,
+    agregarGasto,
+    cargarCategorias,
+  };
 };

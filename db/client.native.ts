@@ -91,6 +91,29 @@ expo.execSync(`
   )
 `);
 
+// ─── Autenticación local ─────────────────────────────────────────────────────
+
+expo.execSync(`
+  CREATE TABLE IF NOT EXISTS usuario (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    username      TEXT    NOT NULL,
+    password_hash TEXT    NOT NULL,
+    email         TEXT    NOT NULL,
+    created_at    TEXT    DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Singleton: una sola fila con id = 1 representa la sesión activa.
+// Se inserta con INSERT OR REPLACE para actualizar sesión al re-login.
+expo.execSync(`
+  CREATE TABLE IF NOT EXISTS sesion_activa (
+    id         INTEGER PRIMARY KEY,
+    usuario_id INTEGER NOT NULL,
+    created_at TEXT    DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuario(id) ON DELETE CASCADE
+  )
+`);
+
 /** Drizzle ORM instance (metas module, typed queries). */
 export const db: ExpoSQLiteDatabase<typeof schema> = drizzle(expo, { schema });
 

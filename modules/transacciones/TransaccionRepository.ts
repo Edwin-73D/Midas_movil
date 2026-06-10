@@ -6,6 +6,7 @@ export type TransaccionRow = {
   valor_transaccion: number;
   fecha_hora: string;
   categoria_id: number | null;
+  meta_id: number | null;
   descripcion: string | null;
 };
 
@@ -36,6 +37,18 @@ export const TransaccionRepository = {
     } catch (error) {
       console.log("Error obteniendo transacciones:", error);
       return [];
+    }
+  },
+
+  getById: (id: number): TransaccionRow | null => {
+    try {
+      return sqlite.getFirstSync(
+        "SELECT * FROM transaccion WHERE ID = ?",
+        [id]
+      ) as TransaccionRow | null;
+    } catch (error) {
+      console.log("Error obteniendo transaccion por ID:", error);
+      return null;
     }
   },
 };
