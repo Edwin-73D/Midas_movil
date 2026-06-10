@@ -2,6 +2,7 @@ import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { MidasColors } from '@/constants/theme';
 import type { Meta } from '@/modules/metas/domain/meta.model';
+import { getProgressColor } from '@/modules/metas/ui/meta.progress';
 
 function formatCurrency(value: number): string {
   return '$ ' + Math.round(value).toLocaleString('es-CO');
@@ -15,13 +16,6 @@ function formatDate(iso: string): string {
   } catch {
     return iso;
   }
-}
-
-function getProgressColor(pct: number): string {
-  if (pct >= 100) return MidasColors.positive;
-  if (pct >= 60) return MidasColors.gold;
-  if (pct >= 30) return MidasColors.needsColor;
-  return '#E74C3C';
 }
 
 export default function MetaItem({

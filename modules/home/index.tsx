@@ -5,6 +5,7 @@ import { MidasColors } from '@/constants/theme';
 
 import { BalanceCard } from './components/BalanceCard';
 import { BudgetSection } from './components/BudgetSection';
+import { GoalsWidget } from './components/GoalsWidget';
 import { HomeHeader } from './components/HomeHeader';
 import { TransactionList } from './components/TransactionList';
 
@@ -19,6 +20,7 @@ export default function HomeScreen() {
         <HomeHeader />
         <BalanceCard />
         <BudgetSection />
+        <GoalsWidget />
         <TransactionList />
       </ScrollView>
     </SafeAreaView>
