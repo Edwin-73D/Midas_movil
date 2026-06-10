@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 import { db } from '@/db/client';
 import { productoFinanciero } from '@/db/schema';
@@ -8,6 +8,24 @@ export const getAllProductos = (setProductos: (p: Producto[]) => void) => {
   if (!db) { setProductos([]); return; }
   const rows = db.select().from(productoFinanciero).all();
   setProductos(rows as unknown as Producto[]);
+};
+
+/** Lectura síncrona (para poblar selectores fuera de un componente). */
+export const getProductosSync = (): Producto[] => {
+  if (!db) return [];
+  return db.select().from(productoFinanciero).all() as unknown as Producto[];
+};
+
+/**
+ * Suma un ahorro al monto neto del producto destino.
+ * Solo debe usarse dentro de un withTransactionSync (registrar-transaccion).
+ */
+export const addMontoToProductoInternal = (productId: number, amount: number) => {
+  if (!db || amount <= 0) return;
+  db.update(productoFinanciero)
+    .set({ montoNeto: sql`COALESCE(${productoFinanciero.montoNeto}, 0) + ${amount}` })
+    .where(eq(productoFinanciero.id, productId))
+    .run();
 };
 
 export const getResumenProductos = (callback: (total: number, count: number) => void) => {

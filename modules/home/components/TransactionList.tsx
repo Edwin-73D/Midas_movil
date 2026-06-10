@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { MidasColors } from '@/constants/theme';
+import { amountDisplay, transactionTitle } from '@/modules/transacciones/transaccion.display';
 import { TransaccionRepository, TransaccionRow } from '@/modules/transacciones/TransaccionRepository';
 import { transactionEvents } from '@/modules/transacciones/transactionEvents';
 
@@ -15,11 +16,6 @@ function formatDateTime(raw: string): string {
   if (diffDays === 0) return `Today, ${time}`;
   if (diffDays === 1) return `Yesterday, ${time}`;
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function formatAmount(amount: number): string {
-  const abs = Math.abs(amount).toFixed(2);
-  return amount >= 0 ? `+$${abs}` : `-$${abs}`;
 }
 
 
@@ -44,7 +40,8 @@ export function TransactionList() {
           <Text style={[styles.txDate, { paddingVertical: 14 }]}>No hay transacciones aún.</Text>
         ) : (
           transactions.map((tx, index) => {
-            const displayName = tx.nombre || tx.descripcion || 'Transacción';
+            const displayName = transactionTitle(tx);
+            const { text, color } = amountDisplay(tx.tipo, tx.valor_transaccion);
             return (
               <View
                 key={tx.ID}
@@ -55,9 +52,7 @@ export function TransactionList() {
                   <Text style={styles.txDate}>{formatDateTime(tx.fecha_hora)}</Text>
                 </View>
 
-                <Text style={[styles.amount, tx.valor_transaccion >= 0 && styles.positive]}>
-                  {formatAmount(tx.valor_transaccion)}
-                </Text>
+                <Text style={[styles.amount, { color }]}>{text}</Text>
               </View>
             );
           })

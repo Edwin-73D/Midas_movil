@@ -22,7 +22,7 @@ import type { FacturaAnalizada } from '../domain/factura.types';
 
 type CategoriaRow = { ID: number; nombre: string };
 
-const CATEGORIES: ExpenseCategory[] = ['Needs', 'Wants', 'Savings'];
+const CATEGORIES: ExpenseCategory[] = ['Needs', 'Wants'];
 
 type ItemState = {
   checked: boolean;

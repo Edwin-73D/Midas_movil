@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
   FlatList,
   StyleSheet,
@@ -28,6 +29,16 @@ export default function FinancialProductsScreen() {
   const { productos, total, count, addProducto, editProducto, removeProducto } = useProductos();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Producto | null>(null);
+
+  // Acceso directo desde el modal de ahorro (?new=1): abre el formulario de alta.
+  const params = useLocalSearchParams<{ new?: string }>();
+  useEffect(() => {
+    if (params.new === '1') {
+      setEditing(null);
+      setShowForm(true);
+      router.setParams({ new: '' });
+    }
+  }, [params.new]);
 
   const openAdd = () => { setEditing(null); setShowForm(true); };
   const openEdit = (p: Producto) => { setEditing(p); setShowForm(true); };

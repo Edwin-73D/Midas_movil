@@ -78,6 +78,33 @@ try {
   // columna ya existe
 }
 
+// HU-16: tipo explícito de transacción ('income' | 'expense' | 'saving')
+try {
+  expo.execSync('ALTER TABLE transaccion ADD COLUMN tipo TEXT');
+} catch {
+  // columna ya existe
+}
+
+// HU-16: producto financiero destino de un ahorro
+try {
+  expo.execSync(
+    'ALTER TABLE transaccion ADD COLUMN producto_financiero_id INTEGER REFERENCES Producto_financiero(ID)'
+  );
+} catch {
+  // columna ya existe
+}
+
+// Backfill del tipo para filas previas a HU-16:
+// las que tenían meta_id eran ahorros; sin categoría eran ingresos; el resto, gastos.
+expo.execSync(`
+  UPDATE transaccion SET tipo = CASE
+    WHEN meta_id IS NOT NULL THEN 'saving'
+    WHEN categoria_id IS NULL THEN 'income'
+    ELSE 'expense'
+  END
+  WHERE tipo IS NULL
+`);
+
 expo.execSync(`
   CREATE TABLE IF NOT EXISTS meta_aporte (
     ID INTEGER PRIMARY KEY AUTOINCREMENT,

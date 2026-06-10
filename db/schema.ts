@@ -27,6 +27,11 @@ export const transaccion = sqliteTable('transaccion', {
   fechaHora: text('fecha_hora').default(sql`CURRENT_TIMESTAMP`),
   categoriaId: integer('categoria_id').references(() => categoria.id),
   metaId: integer('meta_id').references(() => meta.id),
+  // HU-16: 'income' | 'expense' | 'saving'
+  tipo: text('tipo'),
+  productoFinancieroId: integer('producto_financiero_id').references(
+    () => productoFinanciero.id
+  ),
   descripcion: text('descripcion'),
 });
 
@@ -84,4 +89,8 @@ export const transaccionRelations = relations(transaccion, ({ one }) => ({
     references: [categoria.id],
   }),
   meta: one(meta, { fields: [transaccion.metaId], references: [meta.id] }),
+  productoFinanciero: one(productoFinanciero, {
+    fields: [transaccion.productoFinancieroId],
+    references: [productoFinanciero.id],
+  }),
 }));
