@@ -15,8 +15,8 @@ import {
 
 import { MidasColors } from '@/constants/theme';
 
-type TransactionType = 'income' | 'expense';
-type Category = 'Needs' | 'Wants' | 'Savings';
+type TransactionType = 'expense' | 'income' | 'saving';
+type Category = 'Needs' | 'Wants';
 
 export interface NewTransaction {
   type: TransactionType;
@@ -24,47 +24,75 @@ export interface NewTransaction {
   category: Category | null;
   description: string;
   metaId?: number;
+  productoFinancieroId?: number;
 }
 
 export type MetaPickerItem = { id: number; nombre: string };
+export type ProductoPickerItem = { id: number; nombre: string };
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   onSubmit: (tx: NewTransaction) => void;
   metas: MetaPickerItem[];
+  productos: ProductoPickerItem[];
+  onCreateProducto: () => void;
 }
 
 const CATEGORIES: { label: Category; color: string }[] = [
   { label: 'Needs', color: MidasColors.needsColor },
   { label: 'Wants', color: MidasColors.wantsColor },
-  { label: 'Savings', color: MidasColors.savingsColor },
 ];
 
-export function AddTransactionModal({ visible, onClose, onSubmit, metas }: Props) {
+const TYPE_TABS: { value: TransactionType; label: string; color: string }[] = [
+  { value: 'expense', label: 'Gasto', color: '#E74C3C' },
+  { value: 'income', label: 'Ingreso', color: MidasColors.positive },
+  { value: 'saving', label: 'Ahorro', color: MidasColors.gold },
+];
+
+export function AddTransactionModal({
+  visible,
+  onClose,
+  onSubmit,
+  metas,
+  productos,
+  onCreateProducto,
+}: Props) {
   const [type, setType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category | null>(null);
   const [selectedMetaId, setSelectedMetaId] = useState<number | null>(null);
+  const [selectedProductoId, setSelectedProductoId] = useState<number | null>(null);
   const [description, setDescription] = useState('');
 
-  const isSavings = type === 'expense' && category === 'Savings';
-  // Para Savings, solo se requiere seleccionar una meta.
-  // Para los demás tipos, se requiere monto > 0 y categoría si es gasto.
-  const isValid = isSavings
-    ? selectedMetaId != null
-    : parseFloat(amount) > 0 && (type === 'income' || category !== null);
+  const amountValue = parseFloat(amount);
+  const isValid =
+    amountValue > 0 &&
+    (type === 'income' ||
+      (type === 'expense' && category !== null) ||
+      (type === 'saving' && selectedProductoId !== null));
+
+  function selectType(next: TransactionType) {
+    setType(next);
+    setCategory(null);
+    if (next !== 'saving') {
+      setSelectedProductoId(null);
+      setSelectedMetaId(null);
+    }
+  }
 
   function handleSubmit() {
     if (!isValid) return;
-    const parsedAmount = parseFloat(amount);
     try {
       onSubmit({
         type,
-        amount: isNaN(parsedAmount) ? 0 : parsedAmount,
-        category,
-        description,
-        metaId: selectedMetaId ?? undefined,
+        amount: isNaN(amountValue) ? 0 : amountValue,
+        category: type === 'expense' ? category : null,
+        // El ahorro no lleva descripción; su título se deriva de la meta/producto.
+        description: type === 'saving' ? '' : description,
+        metaId: type === 'saving' ? selectedMetaId ?? undefined : undefined,
+        productoFinancieroId:
+          type === 'saving' ? selectedProductoId ?? undefined : undefined,
       });
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo guardar');
@@ -79,6 +107,7 @@ export function AddTransactionModal({ visible, onClose, onSubmit, metas }: Props
     setAmount('');
     setCategory(null);
     setSelectedMetaId(null);
+    setSelectedProductoId(null);
     setDescription('');
   }
 
@@ -87,9 +116,10 @@ export function AddTransactionModal({ visible, onClose, onSubmit, metas }: Props
     onClose();
   }
 
-  function selectCategory(cat: Category) {
-    setCategory(cat);
-    if (cat !== 'Savings') setSelectedMetaId(null);
+  function handleCreateProducto() {
+    resetForm();
+    onClose();
+    onCreateProducto();
   }
 
   return (
@@ -109,136 +139,178 @@ export function AddTransactionModal({ visible, onClose, onSubmit, metas }: Props
             </TouchableOpacity>
           </View>
 
-          <View style={styles.typeRow}>
-            <TouchableOpacity
-              style={[
-                styles.typeButton,
-                type === 'income' && { backgroundColor: MidasColors.positive },
-              ]}
-              onPress={() => {
-                setType('income');
-                setCategory(null);
-                setSelectedMetaId(null);
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.typeLabel, type === 'income' && styles.typeLabelActive]}>
-                Ingreso
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.typeButton,
-                type === 'expense' && { backgroundColor: '#E74C3C' },
-              ]}
-              onPress={() => setType('expense')}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.typeLabel, type === 'expense' && styles.typeLabelActive]}>
-                Gasto
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.amountRow}>
-            <Text style={styles.currencySymbol}>$</Text>
-            <TextInput
-              style={styles.amountInput}
-              value={amount}
-              onChangeText={setAmount}
-              placeholder="0.00"
-              placeholderTextColor={MidasColors.textSecondary}
-              keyboardType="decimal-pad"
-              returnKeyType="done"
-            />
-          </View>
-
-          {type === 'expense' && (
-            <>
-              <Text style={styles.label}>Categoría</Text>
-              <View style={styles.chipRow}>
-                {CATEGORIES.map((cat) => {
-                  const selected = category === cat.label;
-                  return (
-                    <TouchableOpacity
-                      key={cat.label}
-                      style={[
-                        styles.chip,
-                        selected && { backgroundColor: cat.color, borderColor: cat.color },
-                      ]}
-                      onPress={() => selectCategory(cat.label)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>
-                        {cat.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {category === 'Savings' && (
-                <>
-                  <Text style={styles.label}>Meta de ahorro</Text>
-                  {metas.length === 0 ? (
-                    <Text style={styles.hint}>
-                      Crea una meta en la pestaña Metas primero.
-                    </Text>
-                  ) : (
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.metaScroll}
-                    >
-                      {metas.map((m) => {
-                        const selected = selectedMetaId === m.id;
-                        return (
-                          <TouchableOpacity
-                            key={m.id}
-                            style={[
-                              styles.metaChip,
-                              selected && {
-                                backgroundColor: MidasColors.savingsColor,
-                                borderColor: MidasColors.savingsColor,
-                              },
-                            ]}
-                            onPress={() => setSelectedMetaId(m.id)}
-                            activeOpacity={0.8}
-                          >
-                            <Text
-                              style={[styles.chipLabel, selected && styles.chipLabelActive]}
-                            >
-                              {m.nombre}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
-                  )}
-                </>
-              )}
-            </>
-          )}
-
-          <Text style={styles.label}>Descripción</Text>
-          <TextInput
-            style={styles.descInput}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Ej. Almuerzo con el equipo"
-            placeholderTextColor={MidasColors.textSecondary}
-            returnKeyType="done"
-            maxLength={120}
-          />
-
-          <TouchableOpacity
-            style={[styles.submitButton, !isValid && styles.submitButtonDisabled]}
-            onPress={handleSubmit}
-            activeOpacity={0.85}
-            disabled={!isValid}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.scrollContent}
           >
-            <Text style={styles.submitLabel}>Guardar</Text>
-          </TouchableOpacity>
+            <View style={styles.typeRow}>
+              {TYPE_TABS.map((tab) => {
+                const active = type === tab.value;
+                return (
+                  <TouchableOpacity
+                    key={tab.value}
+                    style={[styles.typeButton, active && { backgroundColor: tab.color }]}
+                    onPress={() => selectType(tab.value)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.typeLabel, active && styles.typeLabelActive]}>
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={styles.amountRow}>
+              <Text style={styles.currencySymbol}>$</Text>
+              <TextInput
+                style={styles.amountInput}
+                value={amount}
+                onChangeText={setAmount}
+                placeholder="0.00"
+                placeholderTextColor={MidasColors.textSecondary}
+                keyboardType="decimal-pad"
+                returnKeyType="done"
+              />
+            </View>
+
+            {type === 'expense' && (
+              <>
+                <Text style={styles.label}>Categoría</Text>
+                <View style={styles.chipRow}>
+                  {CATEGORIES.map((cat) => {
+                    const selected = category === cat.label;
+                    return (
+                      <TouchableOpacity
+                        key={cat.label}
+                        style={[
+                          styles.chip,
+                          selected && { backgroundColor: cat.color, borderColor: cat.color },
+                        ]}
+                        onPress={() => setCategory(cat.label)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>
+                          {cat.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+
+            {type === 'saving' && (
+              <>
+                <Text style={styles.label}>Producto financiero *</Text>
+                {productos.length === 0 ? (
+                  <View style={styles.emptyBox}>
+                    <Text style={styles.hint}>
+                      Aún no tienes productos financieros. Crea uno para destinar tu ahorro.
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.createButton}
+                      onPress={handleCreateProducto}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.createButtonText}>+ Crear producto financiero</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.metaScroll}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {productos.map((p) => {
+                      const selected = selectedProductoId === p.id;
+                      return (
+                        <TouchableOpacity
+                          key={p.id}
+                          style={[
+                            styles.metaChip,
+                            selected && {
+                              backgroundColor: MidasColors.gold,
+                              borderColor: MidasColors.gold,
+                            },
+                          ]}
+                          onPress={() => setSelectedProductoId(p.id)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>
+                            {p.nombre}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+
+                <Text style={styles.label}>Meta (opcional)</Text>
+                {metas.length === 0 ? (
+                  <Text style={styles.hint}>No tienes metas. Puedes crear una en la pestaña Metas.</Text>
+                ) : (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.metaScroll}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {metas.map((m) => {
+                      const selected = selectedMetaId === m.id;
+                      return (
+                        <TouchableOpacity
+                          key={m.id}
+                          style={[
+                            styles.metaChip,
+                            selected && {
+                              backgroundColor: MidasColors.savingsColor,
+                              borderColor: MidasColors.savingsColor,
+                            },
+                          ]}
+                          // Tocar de nuevo la meta seleccionada la deselecciona (es opcional).
+                          onPress={() =>
+                            setSelectedMetaId((curr) => (curr === m.id ? null : m.id))
+                          }
+                          activeOpacity={0.8}
+                        >
+                          <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>
+                            {m.nombre}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+              </>
+            )}
+
+            {type !== 'saving' && (
+              <>
+                <Text style={styles.label}>Descripción</Text>
+                <TextInput
+                  style={styles.descInput}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Ej. Almuerzo con el equipo"
+                  placeholderTextColor={MidasColors.textSecondary}
+                  returnKeyType="done"
+                  maxLength={120}
+                />
+              </>
+            )}
+
+            <TouchableOpacity
+              style={[styles.submitButton, !isValid && styles.submitButtonDisabled]}
+              onPress={handleSubmit}
+              activeOpacity={0.85}
+              disabled={!isValid}
+            >
+              <Text style={styles.submitLabel}>Guardar</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -261,8 +333,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 36,
-    gap: 16,
     maxHeight: '90%',
+  },
+  scrollContent: {
+    gap: 16,
+    paddingTop: 16,
   },
   header: {
     flexDirection: 'row',
@@ -326,6 +401,22 @@ const styles = StyleSheet.create({
   hint: {
     color: MidasColors.textSecondary,
     fontSize: 14,
+  },
+  emptyBox: {
+    gap: 12,
+  },
+  createButton: {
+    backgroundColor: '#2A2A2A',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: MidasColors.gold,
+  },
+  createButtonText: {
+    color: MidasColors.gold,
+    fontSize: 14,
+    fontWeight: '700',
   },
   chipRow: {
     flexDirection: 'row',
