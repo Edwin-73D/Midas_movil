@@ -260,7 +260,7 @@ export default function TabLayout() {
             const tipoRec =
               tx.type === 'income'
                 ? 'income'
-                : tx.metaId
+                : tx.type === 'saving'
                   ? 'saving'
                   : 'expense';
             crearPlantillaRecurrente({
@@ -269,8 +269,10 @@ export default function TabLayout() {
               tipo: tipoRec,
               categoria_id: resolvedCategoriaId,
               meta_id: tx.metaId ?? null,
+              producto_financiero_id: tx.productoFinancieroId ?? null,
               descripcion: tx.description || null,
               frecuencia: tx.frecuencia,
+              dia_ejecucion: tx.diaEjecucion ?? null,
             });
           }
         }}

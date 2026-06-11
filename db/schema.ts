@@ -8,6 +8,7 @@ export const categoria = sqliteTable('Categoria', {
   montoReal: real('monto_real').default(0),
   porcentaje: real('porcentaje').default(0),
   descripcion: text('descripcion'),
+  usuarioId: integer('usuario_id'),
 });
 
 export const meta = sqliteTable('Meta', {
@@ -18,6 +19,7 @@ export const meta = sqliteTable('Meta', {
   porcentajeActual: real('porcentaje_actual').default(0),
   descripcion: text('descripcion'),
   fechaFinalizar: text('fecha_finalizar'),
+  usuarioId: integer('usuario_id'),
 });
 
 export const transaccion = sqliteTable('transaccion', {
@@ -33,6 +35,7 @@ export const transaccion = sqliteTable('transaccion', {
     () => productoFinanciero.id
   ),
   descripcion: text('descripcion'),
+  usuarioId: integer('usuario_id'),
 });
 
 export const metaAporte = sqliteTable('meta_aporte', {
@@ -67,6 +70,7 @@ export const productoFinanciero = sqliteTable('Producto_financiero', {
     onDelete: 'set null',
     onUpdate: 'cascade',
   }),
+  usuarioId: integer('usuario_id'),
 });
 
 // De incoming: relaciones Drizzle

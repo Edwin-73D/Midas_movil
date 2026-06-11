@@ -1,4 +1,3 @@
-import { useRootNavigationState, useRouter, useSegments } from 'expo-router';
 import {
   createContext,
   useContext,
@@ -26,25 +25,6 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
-/** Redirige según el estado de sesión (guard de rutas). */
-function useProtectedRoute(user: Usuario | null) {
-  const segments = useSegments();
-  const router = useRouter();
-  const navigationState = useRootNavigationState();
-
-  useEffect(() => {
-    // Esperar a que el navegador raíz esté montado antes de redirigir.
-    if (!navigationState?.key) return;
-
-    const inAuthScreen = (segments[0] as string) === 'login' || (segments[0] as string) === 'register';
-    if (!user && !inAuthScreen) {
-      router.replace('/login' as any);
-    } else if (user && inAuthScreen) {
-      router.replace('/');
-    }
-  }, [user, segments, router, navigationState?.key]);
-}
-
 function validateRegister(data: {
   username: string;
   email: string;
@@ -64,8 +44,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     AuthRepository.seedUsuarioPrueba();
   }, []);
-
-  useProtectedRoute(user);
 
   function login(username: string, password: string): AuthResult {
     if (!username.trim() || !password) return { error: 'Completa usuario y contraseña.' };

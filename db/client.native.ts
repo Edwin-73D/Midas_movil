@@ -158,7 +158,45 @@ expo.execSync(`
   )
 `);
 
-// Limpiar categorías duplicadas de generaciones anteriores.
+// ─── Migraciones incrementales (idempotentes) ────────────────────────────────
+
+// HU-04: soporte de producto financiero en plantillas recurrentes
+try { expo.execSync('ALTER TABLE transaccion_recurrente ADD COLUMN producto_financiero_id INTEGER'); } catch {}
+// HU-06: día de ejecución configurable en plantillas recurrentes
+try { expo.execSync('ALTER TABLE transaccion_recurrente ADD COLUMN dia_ejecucion INTEGER'); } catch {}
+
+// HU-02: columna usuario_id en tablas financieras
+try { expo.execSync('ALTER TABLE transaccion ADD COLUMN usuario_id INTEGER'); } catch {}
+try { expo.execSync('ALTER TABLE Categoria ADD COLUMN usuario_id INTEGER'); } catch {}
+try { expo.execSync('ALTER TABLE Meta ADD COLUMN usuario_id INTEGER'); } catch {}
+try { expo.execSync('ALTER TABLE Producto_financiero ADD COLUMN usuario_id INTEGER'); } catch {}
+try { expo.execSync('ALTER TABLE transaccion_recurrente ADD COLUMN usuario_id INTEGER'); } catch {}
+
+// Backfill: asigna el usuario activo a los datos previos (migración no destructiva)
+try {
+  expo.execSync(`
+    UPDATE transaccion SET usuario_id = (SELECT usuario_id FROM sesion_activa WHERE id = 1)
+    WHERE usuario_id IS NULL
+  `);
+  expo.execSync(`
+    UPDATE Categoria SET usuario_id = (SELECT usuario_id FROM sesion_activa WHERE id = 1)
+    WHERE usuario_id IS NULL
+  `);
+  expo.execSync(`
+    UPDATE Meta SET usuario_id = (SELECT usuario_id FROM sesion_activa WHERE id = 1)
+    WHERE usuario_id IS NULL
+  `);
+  expo.execSync(`
+    UPDATE Producto_financiero SET usuario_id = (SELECT usuario_id FROM sesion_activa WHERE id = 1)
+    WHERE usuario_id IS NULL
+  `);
+  expo.execSync(`
+    UPDATE transaccion_recurrente SET usuario_id = (SELECT usuario_id FROM sesion_activa WHERE id = 1)
+    WHERE usuario_id IS NULL
+  `);
+} catch {}
+
+// ─── Limpiar categorías duplicadas de generaciones anteriores.
 // Primero anula las FK en transacciones que apunten a los duplicados, luego borra.
 try {
   expo.execSync(`

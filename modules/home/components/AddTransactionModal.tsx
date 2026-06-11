@@ -30,6 +30,7 @@ export interface NewTransaction {
   productoFinancieroId?: number;
   recurrente?: boolean;
   frecuencia?: Frecuencia;
+  diaEjecucion?: number;
 }
 
 export type MetaPickerItem = { id: number; nombre: string };
@@ -83,6 +84,7 @@ export function AddTransactionModal({
   const [description,        setDescription]        = useState('');
   const [recurrente,         setRecurrente]         = useState(false);
   const [frecuencia,         setFrecuencia]         = useState<Frecuencia>('mensual');
+  const [diaEjecucion,       setDiaEjecucion]       = useState<number | null>(null);
 
   useEffect(() => {
     if (visible && initialData) {
@@ -122,6 +124,7 @@ export function AddTransactionModal({
         productoFinancieroId: type === 'saving' ? selectedProductoId ?? undefined : undefined,
         recurrente: recurrente || undefined,
         frecuencia: recurrente ? frecuencia : undefined,
+        diaEjecucion: recurrente && diaEjecucion != null ? diaEjecucion : undefined,
       });
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo guardar');
@@ -140,6 +143,7 @@ export function AddTransactionModal({
     setDescription('');
     setRecurrente(false);
     setFrecuencia('mensual');
+    setDiaEjecucion(null);
   }
 
   function handleClose() {
@@ -344,7 +348,7 @@ export function AddTransactionModal({
             )}
 
             {/* ── Recurrencia (solo al crear) ───────────────────────────── */}
-            {!isEditing && type !== 'saving' && (
+            {!isEditing && (
               <>
                 <View style={styles.recurRow}>
                   <View style={styles.recurLabelGroup}>
@@ -377,18 +381,57 @@ export function AddTransactionModal({
                                 borderColor: MidasColors.gold,
                               },
                             ]}
-                            onPress={() => setFrecuencia(f)}
+                            onPress={() => { setFrecuencia(f); setDiaEjecucion(null); }}
                             activeOpacity={0.8}
                           >
-                            <Text
-                              style={[styles.chipLabel, selected && { color: '#0F0F0F' }]}
-                            >
+                            <Text style={[styles.chipLabel, selected && { color: '#0F0F0F' }]}>
                               {f.charAt(0).toUpperCase() + f.slice(1)}
                             </Text>
                           </TouchableOpacity>
                         );
                       })}
                     </View>
+
+                    {/* ── Día de ejecución ─────────────────────────────────── */}
+                    <Text style={styles.label}>Día de ejecución (opcional)</Text>
+                    {frecuencia === 'semanal' ? (
+                      <View style={styles.chipRow}>
+                        {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((d, i) => {
+                          const selected = diaEjecucion === i;
+                          return (
+                            <TouchableOpacity
+                              key={d}
+                              style={[
+                                styles.dayChip,
+                                selected && { backgroundColor: MidasColors.gold, borderColor: MidasColors.gold },
+                              ]}
+                              onPress={() => setDiaEjecucion(selected ? null : i)}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={[styles.dayChipText, selected && { color: '#0F0F0F' }]}>
+                                {d}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    ) : (
+                      <View style={styles.dayInputRow}>
+                        <Text style={styles.hint}>Día del mes (1–31):</Text>
+                        <TextInput
+                          style={styles.dayInput}
+                          value={diaEjecucion != null ? String(diaEjecucion) : ''}
+                          onChangeText={(v) => {
+                            const n = parseInt(v, 10);
+                            setDiaEjecucion(!v ? null : Number.isFinite(n) ? Math.min(31, Math.max(1, n)) : diaEjecucion);
+                          }}
+                          keyboardType="number-pad"
+                          placeholder="—"
+                          placeholderTextColor={MidasColors.textSecondary}
+                          maxLength={2}
+                        />
+                      </View>
+                    )}
                   </>
                 )}
               </>
@@ -592,5 +635,35 @@ const styles = StyleSheet.create({
     color: '#0F0F0F',
     fontSize: 16,
     fontWeight: '700',
+  },
+  dayChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#3A3A3A',
+    backgroundColor: 'transparent',
+    minWidth: 40,
+  },
+  dayChipText: {
+    color: MidasColors.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  dayInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dayInput: {
+    backgroundColor: '#2A2A2A',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: MidasColors.textPrimary,
+    fontSize: 15,
+    width: 64,
+    textAlign: 'center',
   },
 });

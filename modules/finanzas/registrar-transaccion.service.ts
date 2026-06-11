@@ -1,5 +1,6 @@
 import expo, { db } from '@/db/client';
 import { transaccion } from '@/db/schema';
+import { getCurrentUserId } from '@/modules/auth/data/session';
 import { addMontoToMetaInternal } from '@/modules/metas/data/meta.service';
 import { addMontoToProductoInternal } from '@/modules/productos/data/producto.service';
 import type { ExpenseCategory } from '@/modules/shared/finance/categories';
@@ -44,6 +45,7 @@ export function registrarTransaccion(
         metaId: input.metaId ?? null,
         productoFinancieroId: input.productoFinancieroId ?? null,
         descripcion: input.description || null,
+        usuarioId: getCurrentUserId(),
       })
       .run();
 

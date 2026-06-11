@@ -1,20 +1,34 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, or, sql } from 'drizzle-orm';
 
 import { db } from '@/db/client';
 import sqlite from '@/db/client';
 import { productoFinanciero } from '@/db/schema';
+import { getCurrentUserId } from '@/modules/auth/data/session';
 import type { Producto } from '@/modules/productos/domain/producto.model';
+
+function userFilter() {
+  const uid = getCurrentUserId();
+  if (uid == null) return undefined;
+  return or(eq(productoFinanciero.usuarioId, uid), isNull(productoFinanciero.usuarioId));
+}
 
 export const getAllProductos = (setProductos: (p: Producto[]) => void) => {
   if (!db) { setProductos([]); return; }
-  const rows = db.select().from(productoFinanciero).all();
+  const filter = userFilter();
+  const rows = filter
+    ? db.select().from(productoFinanciero).where(filter).all()
+    : db.select().from(productoFinanciero).all();
   setProductos(rows as unknown as Producto[]);
 };
 
 /** Lectura síncrona (para poblar selectores fuera de un componente). */
 export const getProductosSync = (): Producto[] => {
   if (!db) return [];
-  return db.select().from(productoFinanciero).all() as unknown as Producto[];
+  const filter = userFilter();
+  const rows = filter
+    ? db.select().from(productoFinanciero).where(filter).all()
+    : db.select().from(productoFinanciero).all();
+  return rows as unknown as Producto[];
 };
 
 /**
@@ -31,7 +45,10 @@ export const addMontoToProductoInternal = (productId: number, amount: number) =>
 
 export const getResumenProductos = (callback: (total: number, count: number) => void) => {
   if (!db) { callback(0, 0); return; }
-  const rows = db.select().from(productoFinanciero).all();
+  const filter = userFilter();
+  const rows = filter
+    ? db.select().from(productoFinanciero).where(filter).all()
+    : db.select().from(productoFinanciero).all();
   const total = rows.reduce((acc, p) => acc + (p.montoNeto ?? 0), 0);
   callback(total, rows.length);
 };
@@ -46,6 +63,7 @@ export const insertProducto = (p: Producto) => {
     entidadFinanciera: p.entidadFinanciera,
     tipo: p.tipo,
     metaId: p.metaId ?? null,
+    usuarioId: getCurrentUserId(),
   }).run();
 };
 

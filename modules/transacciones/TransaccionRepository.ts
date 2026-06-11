@@ -1,4 +1,5 @@
 import sqlite from '@/db/client';
+import { getCurrentUserId } from '@/modules/auth/data/session';
 
 export type TransaccionTipo = 'income' | 'expense' | 'saving';
 
@@ -48,6 +49,7 @@ export const TransaccionRepository = {
 
   getRecientes: (limit = 20): TransaccionRow[] => {
     try {
+      const uid = getCurrentUserId();
       return sqlite.getAllSync(
         `SELECT
            t.ID,
@@ -64,9 +66,10 @@ export const TransaccionRepository = {
          FROM transaccion t
          LEFT JOIN Meta m ON t.meta_id = m.ID
          LEFT JOIN Producto_financiero p ON t.producto_financiero_id = p.ID
+         WHERE t.usuario_id = ? OR t.usuario_id IS NULL
          ORDER BY t.fecha_hora DESC
          LIMIT ?`,
-        [limit]
+        [uid, limit]
       ) as TransaccionRow[];
     } catch (error) {
       console.log("Error obteniendo transacciones:", error);

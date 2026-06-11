@@ -1,8 +1,9 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull, or } from 'drizzle-orm';
 
 import { db } from '@/db/client';
 import expo from '@/db/client';
 import { meta, metaAporte, transaccion } from '@/db/schema';
+import { getCurrentUserId } from '@/modules/auth/data/session';
 import type { Meta, MetaFormInput } from '@/modules/metas/domain/meta.model';
 import { calcPorcentajeActual } from '@/modules/metas/domain/meta.utils';
 import { metaEvents } from '@/modules/metas/metaEvents';
@@ -33,28 +34,32 @@ function assertValidMetaFormInput(data: MetaFormInput): void {
   if (!data.fechaFinalizar?.trim()) throw new Error('Invalid fechaFinalizar');
 }
 
+function metaUserFilter() {
+  const uid = getCurrentUserId();
+  if (uid == null) return undefined;
+  return or(eq(meta.usuarioId, uid), isNull(meta.usuarioId));
+}
+
 export const getAllMetas = (setMetas: (metas: Meta[]) => void) => {
-  if (!db) {
-    setMetas([]);
-    return;
-  }
-  const result = db.select().from(meta).all();
+  if (!db) { setMetas([]); return; }
+  const filter = metaUserFilter();
+  const result = filter ? db.select().from(meta).where(filter).all() : db.select().from(meta).all();
   setMetas(result.map(mapRowToMeta));
 };
 
 export const getMetasSync = (): Meta[] => {
   if (!db) return [];
-  return db.select().from(meta).all().map(mapRowToMeta);
+  const filter = metaUserFilter();
+  const result = filter ? db.select().from(meta).where(filter).all() : db.select().from(meta).all();
+  return result.map(mapRowToMeta);
 };
 
 export const getResumen = (
   callback: (total: number, count: number, totalGoal: number) => void
 ) => {
-  if (!db) {
-    callback(0, 0, 0);
-    return;
-  }
-  const rows = db.select().from(meta).all();
+  if (!db) { callback(0, 0, 0); return; }
+  const filter = metaUserFilter();
+  const rows = filter ? db.select().from(meta).where(filter).all() : db.select().from(meta).all();
   const total     = rows.reduce((acc, m) => acc + (m.monto     ?? 0), 0);
   const totalGoal = rows.reduce((acc, m) => acc + (m.metaTotal ?? 0), 0);
   callback(total, rows.length, totalGoal);
@@ -71,6 +76,7 @@ export const insertMeta = (metaData: MetaFormInput) => {
       monto: 0,
       descripcion: metaData.descripcion,
       fechaFinalizar: metaData.fechaFinalizar,
+      usuarioId: getCurrentUserId(),
     })
     .run();
 
