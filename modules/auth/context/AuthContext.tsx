@@ -1,4 +1,4 @@
-import { useRouter, useSegments } from 'expo-router';
+import { useRootNavigationState, useRouter, useSegments } from 'expo-router';
 import {
   createContext,
   useContext,
@@ -30,15 +30,19 @@ export function useAuth(): AuthContextValue {
 function useProtectedRoute(user: Usuario | null) {
   const segments = useSegments();
   const router = useRouter();
+  const navigationState = useRootNavigationState();
 
   useEffect(() => {
+    // Esperar a que el navegador raíz esté montado antes de redirigir.
+    if (!navigationState?.key) return;
+
     const inAuthScreen = (segments[0] as string) === 'login' || (segments[0] as string) === 'register';
     if (!user && !inAuthScreen) {
       router.replace('/login' as any);
     } else if (user && inAuthScreen) {
       router.replace('/');
     }
-  }, [user, segments, router]);
+  }, [user, segments, router, navigationState?.key]);
 }
 
 function validateRegister(data: {
