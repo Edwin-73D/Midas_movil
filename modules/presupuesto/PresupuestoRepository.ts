@@ -2,12 +2,16 @@ import sqlite from '@/db/client';
 
 export const PresupuestoRepository = {
   limpiarCategorias: () => {
-  try {
-    sqlite.runSync("DELETE FROM Categoria");
-  } catch (error) {
-    console.log("Error limpiando categorias:", error);
-  }
-},  
+    try {
+      sqlite.withTransactionSync(() => {
+        // Anular FK antes de borrar para evitar constraint violation
+        sqlite.runSync("UPDATE transaccion SET categoria_id = NULL WHERE categoria_id IS NOT NULL");
+        sqlite.runSync("DELETE FROM Categoria");
+      });
+    } catch (error) {
+      console.log("Error limpiando categorias:", error);
+    }
+  },
   getCategorias: () => {
     try {
       return sqlite.getAllSync("SELECT * FROM Categoria");

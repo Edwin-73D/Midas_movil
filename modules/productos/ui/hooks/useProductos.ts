@@ -8,6 +8,7 @@ import {
   updateProducto,
   deleteProducto,
 } from '@/modules/productos/data/producto.service';
+import { transactionEvents } from '@/modules/transacciones/transactionEvents';
 
 export const useProductos = () => {
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -22,7 +23,11 @@ export const useProductos = () => {
     });
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+    // Reflejar cambios de saldo al registrar/editar/eliminar ahorros.
+    return transactionEvents.subscribe(loadData);
+  }, []);
 
   const addProducto = (p: Producto) => {
     try { insertProducto(p); loadData(); } catch (e) { console.error('addProducto:', e); }

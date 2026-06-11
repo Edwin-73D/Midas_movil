@@ -3,7 +3,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -15,16 +14,38 @@ import { CustomBudgetManager } from '../../modules/presupuesto/ui/CustomBudgetMa
 
 type Metodo = '50-30-20' | '60-20-20' | 'personalizado';
 
+// Categorías iniciales que cada plantilla propone al abrir el manager
+const TEMPLATE_CATS: Record<Metodo, { nombre: string; monto: number }[]> = {
+  '50-30-20':      [
+    { nombre: 'Needs',          monto: 0 },
+    { nombre: 'Wants',          monto: 0 },
+    { nombre: 'Savings & Debt', monto: 0 },
+  ],
+  '60-20-20':      [
+    { nombre: 'Needs',          monto: 0 },
+    { nombre: 'Wants',          monto: 0 },
+    { nombre: 'Savings & Debt', monto: 0 },
+  ],
+  'personalizado': [],  // Se llena dinámicamente con las categorías actuales del DB
+};
+
+const METODO_HINTS: Record<Metodo, string> = {
+  '50-30-20':
+    'Plantilla: Necesidades, Deseos y Ahorro. Asigna el monto mensual a cada una.',
+  '60-20-20':
+    'Plantilla: Necesidades, Deseos y Ahorro. Ajusta los montos según tu situación.',
+  'personalizado':
+    'Define tus propias categorías y montos. Empieza desde cero o modifica las categorías actuales.',
+};
+
 export default function PresupuestoScreen() {
   const {
     categorias,
-    generarPresupuesto,
-    generarPresupuestoPersonalizado,
+    generarPresupuestoDesdeMontos,
     cargarCategorias,
   } = usePresupuestoViewModel();
 
-  const [ingreso, setIngreso] = useState('');
-  const [metodo,  setMetodo]  = useState<Metodo>('50-30-20');
+  const [metodo,            setMetodo]           = useState<Metodo>('50-30-20');
   const [showCustomManager, setShowCustomManager] = useState(false);
 
   useEffect(() => {
@@ -35,36 +56,19 @@ export default function PresupuestoScreen() {
   }, []);
 
   const total = categorias.reduce((acc, cat: any) => acc + cat.monto_esperado, 0);
-  const ingresoNum = parseFloat(ingreso);
-  const ingresoValido = !isNaN(ingresoNum) && ingresoNum > 0;
 
-  function handleGenerar() {
-    if (!ingresoValido) return;
-
-    if (metodo === 'personalizado') {
-      // Abre el manager con las categorías actuales del DB como punto de partida
-      setShowCustomManager(true);
-    } else {
-      generarPresupuesto(ingresoNum, metodo);
-    }
-  }
+  // Categorías iniciales que se pasan al manager según la plantilla activa
+  const categoriasParaManager: { nombre: string; monto: number }[] =
+    metodo === 'personalizado'
+      ? categorias.map((c: any) => ({ nombre: c.nombre, monto: c.monto_esperado }))
+      : TEMPLATE_CATS[metodo];
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Tu división mensual</Text>
+        <Text style={styles.title}>Tu presupuesto mensual</Text>
 
-        {/* ── Campo de ingreso ────────────────────────────────────────── */}
-        <TextInput
-          placeholder="Ingresa tu ingreso mensual"
-          placeholderTextColor={MidasColors.textSecondary}
-          keyboardType="numeric"
-          value={ingreso}
-          onChangeText={setIngreso}
-          style={styles.input}
-        />
-
-        {/* ── Selector de método ──────────────────────────────────────── */}
+        {/* ── Selector de plantilla ────────────────────────────────────── */}
         <View style={styles.methodGroup}>
           {(
             [
@@ -81,12 +85,7 @@ export default function PresupuestoScreen() {
                 onPress={() => setMetodo(key)}
                 activeOpacity={0.8}
               >
-                <Text
-                  style={[
-                    styles.methodBtnText,
-                    active && styles.methodBtnTextActive,
-                  ]}
-                >
+                <Text style={[styles.methodBtnText, active && styles.methodBtnTextActive]}>
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -94,29 +93,22 @@ export default function PresupuestoScreen() {
           })}
         </View>
 
-        {/* Descripción contextual */}
-        {metodo === 'personalizado' && (
-          <Text style={styles.hint}>
-            Define tus propias categorías y porcentajes. Puedes usar Needs, Wants y
-            Savings como punto de partida.
-          </Text>
-        )}
+        <Text style={styles.hint}>{METODO_HINTS[metodo]}</Text>
 
-        {/* ── Botón generar ───────────────────────────────────────────── */}
+        {/* ── Botón configurar ─────────────────────────────────────────── */}
         <TouchableOpacity
-          style={[styles.generateButton, !ingresoValido && styles.generateButtonDisabled]}
-          onPress={handleGenerar}
+          style={styles.generateButton}
+          onPress={() => setShowCustomManager(true)}
           activeOpacity={0.85}
-          disabled={!ingresoValido}
         >
-          <Text style={styles.generateText}>Generar presupuesto</Text>
+          <Text style={styles.generateText}>Configurar presupuesto</Text>
         </TouchableOpacity>
 
         {/* ── Resumen total ────────────────────────────────────────────── */}
         {categorias.length > 0 && (
           <>
             <View style={styles.totalContainer}>
-              <Text style={styles.totalLabel}>TOTAL</Text>
+              <Text style={styles.totalLabel}>TOTAL PRESUPUESTADO</Text>
               <Text style={styles.totalAmount}>
                 ${Math.round(total).toLocaleString('es-CO')}
               </Text>
@@ -130,17 +122,13 @@ export default function PresupuestoScreen() {
         )}
       </ScrollView>
 
-      {/* ── Manager de presupuesto personalizado ───────────────────────── */}
+      {/* ── Manager de presupuesto ───────────────────────────────────────── */}
       <CustomBudgetManager
         visible={showCustomManager}
-        ingreso={ingresoNum || 0}
-        categoriasIniciales={categorias.map((c: any) => ({
-          nombre: c.nombre,
-          porcentaje: c.porcentaje,
-        }))}
+        categoriasIniciales={categoriasParaManager}
         onClose={() => setShowCustomManager(false)}
         onConfirm={(cats) => {
-          generarPresupuestoPersonalizado(ingresoNum, cats);
+          generarPresupuestoDesdeMontos(cats);
           setShowCustomManager(false);
         }}
       />
@@ -148,12 +136,12 @@ export default function PresupuestoScreen() {
   );
 }
 
-// ─── Tarjeta de categoría ────────────────────────────────────────────────────
+// ─── Tarjeta de categoría ─────────────────────────────────────────────────────
 
 const CATEGORY_COLORS: Record<string, string> = {
-  needs:          MidasColors.needsColor,
-  wants:          MidasColors.wantsColor,
-  savings:        MidasColors.savingsColor,
+  needs:            MidasColors.needsColor,
+  wants:            MidasColors.wantsColor,
+  savings:          MidasColors.savingsColor,
   'savings & debt': MidasColors.savingsColor,
 };
 
@@ -167,13 +155,12 @@ function resolveCategoryColor(nombre: string, fallbackIndex: number): string {
   return PALETTE[fallbackIndex % PALETTE.length];
 }
 
-function CategoriaCard({ categoria, index }: { categoria: any; index?: number }) {
+function CategoriaCard({ categoria }: { categoria: any }) {
   const restante = categoria.monto_esperado - categoria.monto_real;
   const progreso =
     categoria.monto_esperado > 0
       ? Math.min(categoria.monto_real / categoria.monto_esperado, 1)
       : 0;
-
   const color = resolveCategoryColor(categoria.nombre, categoria.ID ?? 0);
 
   return (
@@ -183,7 +170,11 @@ function CategoriaCard({ categoria, index }: { categoria: any; index?: number })
           <View style={[cardStyles.dot, { backgroundColor: color }]} />
           <Text style={cardStyles.cardTitle}>{categoria.nombre}</Text>
         </View>
-        <Text style={cardStyles.cardPercent}>{categoria.porcentaje}%</Text>
+        {categoria.porcentaje > 0 && (
+          <Text style={cardStyles.cardPercent}>
+            {Math.round(categoria.porcentaje * 10) / 10}%
+          </Text>
+        )}
       </View>
 
       <Text style={cardStyles.cardAmount}>
@@ -203,15 +194,17 @@ function CategoriaCard({ categoria, index }: { categoria: any; index?: number })
         <Text style={cardStyles.spent}>
           Gastado: ${Math.round(categoria.monto_real).toLocaleString('es-CO')}
         </Text>
-        <Text style={cardStyles.left}>
-          Restante: ${Math.round(restante).toLocaleString('es-CO')}
+        <Text style={[cardStyles.left, restante < 0 && cardStyles.leftOver]}>
+          {restante >= 0
+            ? `Restante: $${Math.round(restante).toLocaleString('es-CO')}`
+            : `Excedido: $${Math.round(Math.abs(restante)).toLocaleString('es-CO')}`}
         </Text>
       </View>
     </View>
   );
 }
 
-// ─── Estilos ─────────────────────────────────────────────────────────────────
+// ─── Estilos ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   safe: {
@@ -230,16 +223,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 4,
   },
-  input: {
-    backgroundColor: MidasColors.cardBackground,
-    color: MidasColors.textPrimary,
-    padding: 14,
-    borderRadius: 12,
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-  },
-  // ── Selector de método ─────────────────────────────────────────────────
   methodGroup: {
     gap: 8,
   },
@@ -269,7 +252,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: -4,
   },
-  // ── Botón generar ──────────────────────────────────────────────────────
   generateButton: {
     backgroundColor: MidasColors.gold,
     padding: 16,
@@ -277,15 +259,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
   },
-  generateButtonDisabled: {
-    opacity: 0.4,
-  },
   generateText: {
     color: '#0F0F0F',
     fontWeight: '700',
     fontSize: 15,
   },
-  // ── Total ──────────────────────────────────────────────────────────────
   totalContainer: {
     alignItems: 'center',
     paddingVertical: 8,
@@ -363,5 +341,8 @@ const cardStyles = StyleSheet.create({
   left: {
     color: MidasColors.textSecondary,
     fontSize: 12,
+  },
+  leftOver: {
+    color: '#E74C3C',
   },
 });

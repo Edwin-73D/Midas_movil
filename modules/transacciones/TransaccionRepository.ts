@@ -34,6 +34,18 @@ export const TransaccionRepository = {
     }
   },
 
+  getById: (id: number): TransaccionRow | null => {
+    try {
+      return sqlite.getFirstSync(
+        'SELECT * FROM transaccion WHERE ID = ?',
+        [id]
+      ) as TransaccionRow | null;
+    } catch (error) {
+      console.log('Error obteniendo transaccion por id:', error);
+      return null;
+    }
+  },
+
   getRecientes: (limit = 20): TransaccionRow[] => {
     try {
       return sqlite.getAllSync(

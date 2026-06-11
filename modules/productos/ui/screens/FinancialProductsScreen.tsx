@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { MidasColors } from '@/constants/theme';
 import type { Producto } from '@/modules/productos/domain/producto.model';
+import { ProductoAhorrosModal } from '../components/ProductoAhorrosModal';
 import ProductoForm from '../components/ProductoForm';
 import ProductoItem from '../components/ProductoItem';
 import { useProductos } from '../hooks/useProductos';
@@ -29,6 +30,10 @@ export default function FinancialProductsScreen() {
   const { productos, total, count, addProducto, editProducto, removeProducto } = useProductos();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Producto | null>(null);
+  // Producto cuyo historial de ahorros se está viendo (se re-deriva de la lista
+  // para que el saldo del encabezado se refresque al editar/eliminar un ahorro).
+  const [historialId, setHistorialId] = useState<number | null>(null);
+  const historialProducto = productos.find((p) => p.id === historialId) ?? null;
 
   // Acceso directo desde el modal de ahorro (?new=1): abre el formulario de alta.
   const params = useLocalSearchParams<{ new?: string }>();
@@ -98,6 +103,7 @@ export default function FinancialProductsScreen() {
             producto={item}
             onEdit={openEdit}
             onDelete={removeProducto}
+            onPress={(p) => p.id != null && setHistorialId(p.id)}
           />
         )}
         contentContainerStyle={styles.listContent}
@@ -125,6 +131,12 @@ export default function FinancialProductsScreen() {
         onClose={handleClose}
         onSubmit={handleSubmit}
         initialData={editing ?? undefined}
+      />
+
+      <ProductoAhorrosModal
+        visible={historialProducto != null}
+        producto={historialProducto}
+        onClose={() => setHistorialId(null)}
       />
     </View>
   );

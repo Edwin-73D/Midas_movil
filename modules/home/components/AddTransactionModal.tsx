@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -18,6 +19,8 @@ import { MidasColors } from '@/constants/theme';
 type TransactionType = 'expense' | 'income' | 'saving';
 type Category = 'Needs' | 'Wants';
 
+export type Frecuencia = 'semanal' | 'mensual';
+
 export interface NewTransaction {
   type: TransactionType;
   amount: number;
@@ -25,18 +28,30 @@ export interface NewTransaction {
   description: string;
   metaId?: number;
   productoFinancieroId?: number;
+  recurrente?: boolean;
+  frecuencia?: Frecuencia;
 }
 
 export type MetaPickerItem = { id: number; nombre: string };
 export type ProductoPickerItem = { id: number; nombre: string };
+
+export interface InitialTransactionData {
+  type: TransactionType;
+  amount: string;
+  category: Category | null;
+  description: string;
+  metaId?: number;
+}
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   onSubmit: (tx: NewTransaction) => void;
   metas: MetaPickerItem[];
-  productos: ProductoPickerItem[];
-  onCreateProducto: () => void;
+  productos?: ProductoPickerItem[];
+  onCreateProducto?: () => void;
+  initialData?: InitialTransactionData;
+  isEditing?: boolean;
 }
 
 const CATEGORIES: { label: Category; color: string }[] = [
@@ -45,9 +60,9 @@ const CATEGORIES: { label: Category; color: string }[] = [
 ];
 
 const TYPE_TABS: { value: TransactionType; label: string; color: string }[] = [
-  { value: 'expense', label: 'Gasto', color: '#E74C3C' },
-  { value: 'income', label: 'Ingreso', color: MidasColors.positive },
-  { value: 'saving', label: 'Ahorro', color: MidasColors.gold },
+  { value: 'expense', label: 'Gasto',   color: '#E74C3C' },
+  { value: 'income',  label: 'Ingreso', color: MidasColors.positive },
+  { value: 'saving',  label: 'Ahorro',  color: MidasColors.gold },
 ];
 
 export function AddTransactionModal({
@@ -55,15 +70,29 @@ export function AddTransactionModal({
   onClose,
   onSubmit,
   metas,
-  productos,
+  productos = [],
   onCreateProducto,
+  initialData,
+  isEditing = false,
 }: Props) {
-  const [type, setType] = useState<TransactionType>('expense');
-  const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState<Category | null>(null);
-  const [selectedMetaId, setSelectedMetaId] = useState<number | null>(null);
+  const [type,               setType]               = useState<TransactionType>('expense');
+  const [amount,             setAmount]             = useState('');
+  const [category,           setCategory]           = useState<Category | null>(null);
+  const [selectedMetaId,     setSelectedMetaId]     = useState<number | null>(null);
   const [selectedProductoId, setSelectedProductoId] = useState<number | null>(null);
-  const [description, setDescription] = useState('');
+  const [description,        setDescription]        = useState('');
+  const [recurrente,         setRecurrente]         = useState(false);
+  const [frecuencia,         setFrecuencia]         = useState<Frecuencia>('mensual');
+
+  useEffect(() => {
+    if (visible && initialData) {
+      setType(initialData.type);
+      setAmount(initialData.amount);
+      setCategory(initialData.category);
+      setSelectedMetaId(initialData.metaId ?? null);
+      setDescription(initialData.description);
+    }
+  }, [visible, initialData]);
 
   const amountValue = parseFloat(amount);
   const isValid =
@@ -88,11 +117,11 @@ export function AddTransactionModal({
         type,
         amount: isNaN(amountValue) ? 0 : amountValue,
         category: type === 'expense' ? category : null,
-        // El ahorro no lleva descripción; su título se deriva de la meta/producto.
         description: type === 'saving' ? '' : description,
         metaId: type === 'saving' ? selectedMetaId ?? undefined : undefined,
-        productoFinancieroId:
-          type === 'saving' ? selectedProductoId ?? undefined : undefined,
+        productoFinancieroId: type === 'saving' ? selectedProductoId ?? undefined : undefined,
+        recurrente: recurrente || undefined,
+        frecuencia: recurrente ? frecuencia : undefined,
       });
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo guardar');
@@ -109,6 +138,8 @@ export function AddTransactionModal({
     setSelectedMetaId(null);
     setSelectedProductoId(null);
     setDescription('');
+    setRecurrente(false);
+    setFrecuencia('mensual');
   }
 
   function handleClose() {
@@ -119,7 +150,7 @@ export function AddTransactionModal({
   function handleCreateProducto() {
     resetForm();
     onClose();
-    onCreateProducto();
+    onCreateProducto?.();
   }
 
   return (
@@ -133,7 +164,9 @@ export function AddTransactionModal({
       >
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <Text style={styles.title}>Nueva transacción</Text>
+            <Text style={styles.title}>
+              {isEditing ? 'Editar transacción' : 'Nueva transacción'}
+            </Text>
             <TouchableOpacity onPress={handleClose} hitSlop={12}>
               <Text style={styles.closeIcon}>×</Text>
             </TouchableOpacity>
@@ -144,24 +177,28 @@ export function AddTransactionModal({
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.scrollContent}
           >
-            <View style={styles.typeRow}>
-              {TYPE_TABS.map((tab) => {
-                const active = type === tab.value;
-                return (
-                  <TouchableOpacity
-                    key={tab.value}
-                    style={[styles.typeButton, active && { backgroundColor: tab.color }]}
-                    onPress={() => selectType(tab.value)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.typeLabel, active && styles.typeLabelActive]}>
-                      {tab.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            {/* ── Selector de tipo ──────────────────────────────────────── */}
+            {!isEditing && (
+              <View style={styles.typeRow}>
+                {TYPE_TABS.map((tab) => {
+                  const active = type === tab.value;
+                  return (
+                    <TouchableOpacity
+                      key={tab.value}
+                      style={[styles.typeButton, active && { backgroundColor: tab.color }]}
+                      onPress={() => selectType(tab.value)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.typeLabel, active && styles.typeLabelActive]}>
+                        {tab.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
 
+            {/* ── Monto ─────────────────────────────────────────────────── */}
             <View style={styles.amountRow}>
               <Text style={styles.currencySymbol}>$</Text>
               <TextInput
@@ -175,6 +212,7 @@ export function AddTransactionModal({
               />
             </View>
 
+            {/* ── Categoría (solo gastos) ───────────────────────────────── */}
             {type === 'expense' && (
               <>
                 <Text style={styles.label}>Categoría</Text>
@@ -201,6 +239,7 @@ export function AddTransactionModal({
               </>
             )}
 
+            {/* ── Ahorro: producto + meta ───────────────────────────────── */}
             {type === 'saving' && (
               <>
                 <Text style={styles.label}>Producto financiero *</Text>
@@ -250,7 +289,9 @@ export function AddTransactionModal({
 
                 <Text style={styles.label}>Meta (opcional)</Text>
                 {metas.length === 0 ? (
-                  <Text style={styles.hint}>No tienes metas. Puedes crear una en la pestaña Metas.</Text>
+                  <Text style={styles.hint}>
+                    No tienes metas. Puedes crear una en la pestaña Metas.
+                  </Text>
                 ) : (
                   <ScrollView
                     horizontal
@@ -270,7 +311,6 @@ export function AddTransactionModal({
                               borderColor: MidasColors.savingsColor,
                             },
                           ]}
-                          // Tocar de nuevo la meta seleccionada la deselecciona (es opcional).
                           onPress={() =>
                             setSelectedMetaId((curr) => (curr === m.id ? null : m.id))
                           }
@@ -287,6 +327,7 @@ export function AddTransactionModal({
               </>
             )}
 
+            {/* ── Descripción (no para ahorros) ─────────────────────────── */}
             {type !== 'saving' && (
               <>
                 <Text style={styles.label}>Descripción</Text>
@@ -302,13 +343,66 @@ export function AddTransactionModal({
               </>
             )}
 
+            {/* ── Recurrencia (solo al crear) ───────────────────────────── */}
+            {!isEditing && type !== 'saving' && (
+              <>
+                <View style={styles.recurRow}>
+                  <View style={styles.recurLabelGroup}>
+                    <Text style={styles.recurLabel}>Transacción recurrente</Text>
+                    <Text style={styles.recurSubLabel}>
+                      Se registrará automáticamente según la frecuencia elegida
+                    </Text>
+                  </View>
+                  <Switch
+                    value={recurrente}
+                    onValueChange={setRecurrente}
+                    trackColor={{ false: '#3A3A3A', true: MidasColors.gold }}
+                    thumbColor={recurrente ? '#0F0F0F' : '#888888'}
+                  />
+                </View>
+
+                {recurrente && (
+                  <>
+                    <Text style={styles.label}>Frecuencia</Text>
+                    <View style={styles.chipRow}>
+                      {(['semanal', 'mensual'] as Frecuencia[]).map((f) => {
+                        const selected = frecuencia === f;
+                        return (
+                          <TouchableOpacity
+                            key={f}
+                            style={[
+                              styles.chip,
+                              selected && {
+                                backgroundColor: MidasColors.gold,
+                                borderColor: MidasColors.gold,
+                              },
+                            ]}
+                            onPress={() => setFrecuencia(f)}
+                            activeOpacity={0.8}
+                          >
+                            <Text
+                              style={[styles.chipLabel, selected && { color: '#0F0F0F' }]}
+                            >
+                              {f.charAt(0).toUpperCase() + f.slice(1)}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </>
+                )}
+              </>
+            )}
+
             <TouchableOpacity
               style={[styles.submitButton, !isValid && styles.submitButtonDisabled]}
               onPress={handleSubmit}
               activeOpacity={0.85}
               disabled={!isValid}
             >
-              <Text style={styles.submitLabel}>Guardar</Text>
+              <Text style={styles.submitLabel}>
+                {isEditing ? 'Guardar cambios' : 'Guardar'}
+              </Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -459,6 +553,30 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     color: MidasColors.textPrimary,
     fontSize: 15,
+  },
+  recurRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#2A2A2A',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  recurLabelGroup: {
+    flex: 1,
+    gap: 2,
+  },
+  recurLabel: {
+    color: MidasColors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  recurSubLabel: {
+    color: MidasColors.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
   },
   submitButton: {
     backgroundColor: MidasColors.gold,

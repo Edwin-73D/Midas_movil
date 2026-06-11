@@ -43,9 +43,10 @@ interface Props {
   producto: Producto;
   onEdit: (p: Producto) => void;
   onDelete: (id: number) => void;
+  onPress?: (p: Producto) => void;
 }
 
-export default function ProductoItem({ producto, onEdit, onDelete }: Props) {
+export default function ProductoItem({ producto, onEdit, onDelete, onPress }: Props) {
   const { icon, bg, color } = getIconConfig(producto.tipo, producto.entidadFinanciera ?? '');
 
   const handleLongPress = () => {
@@ -62,7 +63,12 @@ export default function ProductoItem({ producto, onEdit, onDelete }: Props) {
   };
 
   return (
-    <TouchableOpacity style={styles.card} onLongPress={handleLongPress} activeOpacity={0.75}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => onPress?.(producto)}
+      onLongPress={handleLongPress}
+      activeOpacity={0.75}
+    >
       <View style={[styles.iconBox, { backgroundColor: bg }]}>
         <IconSymbol name={icon} size={20} color={color} />
       </View>

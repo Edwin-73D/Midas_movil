@@ -30,7 +30,7 @@ function EmptyState({ onPress }: { onPress: () => void }) {
 }
 
 export default function FinancialGoalsScreen() {
-  const { metas, total, count, addMeta, editMeta, removeMeta } = useMetas();
+  const { metas, total, totalGoal, count, addMeta, editMeta, removeMeta } = useMetas();
 
   const [editingMeta, setEditingMeta] = useState<Meta | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -60,8 +60,6 @@ export default function FinancialGoalsScreen() {
     setEditingMeta(null);
   };
 
-  // Total ahorrado sobre total objetivo
-  const totalGoal = metas.reduce((sum, m) => sum + m.metaTotal, 0);
   const overallPct = totalGoal > 0 ? Math.min((total / totalGoal) * 100, 100) : 0;
 
   return (
