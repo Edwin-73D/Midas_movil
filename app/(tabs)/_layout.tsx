@@ -38,8 +38,6 @@ export default function TabLayout() {
   const [metasPicker, setMetasPicker] = useState<MetaPickerItem[]>([]);
   const [productosPicker, setProductosPicker] = useState<ProductoPickerItem[]>([]);
   const [fabOpen, setFabOpen] = useState(false);
-  const isProductosTab = segments[segments.length - 1] === 'productos';
-
   const menuAnim = useRef(new Animated.Value(0)).current;
 
   const { agregarGasto, categorias } = usePresupuestoViewModel();
@@ -155,9 +153,8 @@ export default function TabLayout() {
         <Pressable style={StyleSheet.absoluteFill} onPress={closeFab} />
       )}
 
-      {!isProductosTab && (
-        <>
-          {/* Opción 3: Registrar por voz */}
+      <>
+        {/* Opción 3: Registrar por voz */}
           <Animated.View
             style={[
               styles.menuItem,
@@ -226,8 +223,7 @@ export default function TabLayout() {
               {fabOpen ? '×' : '+'}
             </Text>
           </TouchableOpacity>
-        </>
-      )}
+      </>
 
       <AddTransactionModal
         visible={modalVisible}

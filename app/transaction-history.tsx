@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { SectionList, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  SectionList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 import { MidasColors } from '@/constants/theme';
+import { AddTransactionModal } from '@/modules/home/components/AddTransactionModal';
 import { amountDisplay, transactionTitle } from '@/modules/transacciones/transaccion.display';
-import { TransaccionRepository, TransaccionRow } from '@/modules/transacciones/TransaccionRepository';
+import { TransaccionRepository, type TransaccionRow } from '@/modules/transacciones/TransaccionRepository';
+import { useTransactionActions } from '@/modules/transacciones/hooks/useTransactionActions';
 import { transactionEvents } from '@/modules/transacciones/transactionEvents';
 
 function formatDateTime(raw: string): string {
@@ -21,6 +30,12 @@ type Section = { title: string; data: TransaccionRow[] };
 
 export default function TransactionHistoryScreen() {
   const [transactions, setTransactions] = useState<TransaccionRow[]>([]);
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+
+  const {
+    editTx, setEditTx, metasPicker, cargarCategorias,
+    handleEdit: baseHandleEdit, handleDelete, handleEditSubmit, buildInitialData,
+  } = useTransactionActions();
 
   function load() {
     setTransactions(TransaccionRepository.getRecientes(1000));
@@ -28,10 +43,23 @@ export default function TransactionHistoryScreen() {
 
   useEffect(() => {
     load();
+    cargarCategorias();
     return transactionEvents.subscribe(load);
   }, []);
 
-  // HU-16: los ahorros se muestran en su propia sección.
+  function openMenu(id: number) { setOpenMenuId(id); }
+  function closeMenu() { setOpenMenuId(null); }
+
+  function handleEdit(tx: TransaccionRow) {
+    closeMenu();
+    baseHandleEdit(tx);
+  }
+
+  function handleDeleteWithClose(tx: TransaccionRow) {
+    closeMenu();
+    handleDelete(tx);
+  }
+
   const sections = useMemo<Section[]>(() => {
     const ahorros = transactions.filter((t) => t.tipo === 'saving');
     const movimientos = transactions.filter((t) => t.tipo !== 'saving');
@@ -43,6 +71,10 @@ export default function TransactionHistoryScreen() {
 
   return (
     <View style={styles.container}>
+      {openMenuId !== null && (
+        <Pressable style={StyleSheet.absoluteFill} onPress={closeMenu} />
+      )}
+
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.ID.toString()}
@@ -55,23 +87,69 @@ export default function TransactionHistoryScreen() {
         renderItem={({ item }) => {
           const displayName = transactionTitle(item);
           const { text, color } = amountDisplay(item.tipo, item.valor_transaccion);
-          // El título ya es la meta (si existe) o el producto; aquí mostramos el
-          // producto destino solo cuando el título es la meta, para no repetirlo.
           const savingDestino =
             item.tipo === 'saving' && item.meta_nombre
               ? `→ ${item.producto_nombre ?? 'Producto'}`
               : null;
+          const menuOpen = openMenuId === item.ID;
+
           return (
-            <View style={styles.row}>
+            <View
+              style={[
+                styles.row,
+                { overflow: 'visible', zIndex: menuOpen ? 10 : 1 },
+              ]}
+            >
               <View style={styles.info}>
                 <Text style={styles.txName}>{displayName}</Text>
                 <Text style={styles.txDate}>{formatDateTime(item.fecha_hora)}</Text>
                 {savingDestino && <Text style={styles.txDestino}>{savingDestino}</Text>}
               </View>
+
               <Text style={[styles.amount, { color }]}>{text}</Text>
+
+              <TouchableOpacity
+                style={styles.menuButton}
+                onPress={() => (menuOpen ? closeMenu() : openMenu(item.ID))}
+                hitSlop={8}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.menuDots}>⋮</Text>
+              </TouchableOpacity>
+
+              {menuOpen && (
+                <View style={styles.dropdown}>
+                  <TouchableOpacity
+                    style={styles.dropdownItem}
+                    onPress={() => handleEdit(item)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.dropdownText}>Editar</Text>
+                  </TouchableOpacity>
+                  <View style={styles.dropdownDivider} />
+                  <TouchableOpacity
+                    style={styles.dropdownItem}
+                    onPress={() => handleDeleteWithClose(item)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.dropdownText, styles.dropdownTextDanger]}>
+                      Eliminar
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           );
         }}
+      />
+
+      <AddTransactionModal
+        visible={editTx !== null}
+        metas={metasPicker}
+        isEditing
+        initialData={editTx ? buildInitialData(editTx) : undefined}
+        onClose={() => setEditTx(null)}
+        onSubmit={handleEditSubmit}
       />
     </View>
   );
@@ -132,5 +210,46 @@ const styles = StyleSheet.create({
   amount: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  menuButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  menuDots: {
+    color: MidasColors.textSecondary,
+    fontSize: 20,
+    lineHeight: 22,
+  },
+  dropdown: {
+    position: 'absolute',
+    right: 0,
+    top: 36,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#3A3A3A',
+    minWidth: 130,
+    zIndex: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  dropdownItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  dropdownDivider: {
+    height: 1,
+    backgroundColor: '#3A3A3A',
+  },
+  dropdownText: {
+    color: MidasColors.textPrimary,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  dropdownTextDanger: {
+    color: '#E74C3C',
   },
 });

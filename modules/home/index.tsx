@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MidasColors } from '@/constants/theme';
 
 import { BalanceCard } from './components/BalanceCard';
+import { BudgetAlerts } from './components/BudgetAlerts';
 import { BudgetSection } from './components/BudgetSection';
 import { GoalsWidget } from './components/GoalsWidget';
 import { HomeHeader } from './components/HomeHeader';
@@ -19,6 +20,7 @@ export default function HomeScreen() {
       >
         <HomeHeader />
         <BalanceCard />
+        <BudgetAlerts />
         <BudgetSection />
         <GoalsWidget />
         <TransactionList />

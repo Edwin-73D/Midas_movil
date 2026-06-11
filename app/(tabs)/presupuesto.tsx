@@ -47,6 +47,7 @@ export default function PresupuestoScreen() {
 
   const [metodo,            setMetodo]           = useState<Metodo>('50-30-20');
   const [showCustomManager, setShowCustomManager] = useState(false);
+  const tienePresupuesto = categorias.length > 0;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -68,44 +69,45 @@ export default function PresupuestoScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Tu presupuesto mensual</Text>
 
-        {/* ── Selector de plantilla ────────────────────────────────────── */}
-        <View style={styles.methodGroup}>
-          {(
-            [
-              { key: '50-30-20',      label: '50 / 30 / 20' },
-              { key: '60-20-20',      label: '60 / 20 / 20' },
-              { key: 'personalizado', label: 'Personalizado' },
-            ] as { key: Metodo; label: string }[]
-          ).map(({ key, label }) => {
-            const active = metodo === key;
-            return (
-              <TouchableOpacity
-                key={key}
-                style={[styles.methodBtn, active && styles.methodBtnActive]}
-                onPress={() => setMetodo(key)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.methodBtnText, active && styles.methodBtnTextActive]}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {/* ── Selector de plantilla (solo si no hay presupuesto) ──────── */}
+        {!tienePresupuesto && (
+          <>
+            <View style={styles.methodGroup}>
+              {(
+                [
+                  { key: '50-30-20',      label: '50 / 30 / 20' },
+                  { key: '60-20-20',      label: '60 / 20 / 20' },
+                  { key: 'personalizado', label: 'Personalizado' },
+                ] as { key: Metodo; label: string }[]
+              ).map(({ key, label }) => {
+                const active = metodo === key;
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    style={[styles.methodBtn, active && styles.methodBtnActive]}
+                    onPress={() => setMetodo(key)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.methodBtnText, active && styles.methodBtnTextActive]}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <Text style={styles.hint}>{METODO_HINTS[metodo]}</Text>
+            <TouchableOpacity
+              style={styles.generateButton}
+              onPress={() => setShowCustomManager(true)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.generateText}>Configurar presupuesto</Text>
+            </TouchableOpacity>
+          </>
+        )}
 
-        <Text style={styles.hint}>{METODO_HINTS[metodo]}</Text>
-
-        {/* ── Botón configurar ─────────────────────────────────────────── */}
-        <TouchableOpacity
-          style={styles.generateButton}
-          onPress={() => setShowCustomManager(true)}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.generateText}>Configurar presupuesto</Text>
-        </TouchableOpacity>
-
-        {/* ── Resumen total ────────────────────────────────────────────── */}
-        {categorias.length > 0 && (
+        {/* ── Con presupuesto: mostrar categorías + botón editar al final ─ */}
+        {tienePresupuesto && (
           <>
             <View style={styles.totalContainer}>
               <Text style={styles.totalLabel}>TOTAL PRESUPUESTADO</Text>
@@ -114,10 +116,17 @@ export default function PresupuestoScreen() {
               </Text>
             </View>
 
-            {/* ── Tarjetas de categoría ─────────────────────────────── */}
             {categorias.map((cat: any) => (
               <CategoriaCard key={cat.ID} categoria={cat} />
             ))}
+
+            <TouchableOpacity
+              style={[styles.generateButton, { marginTop: 8 }]}
+              onPress={() => setShowCustomManager(true)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.generateText}>Editar presupuesto</Text>
+            </TouchableOpacity>
           </>
         )}
       </ScrollView>

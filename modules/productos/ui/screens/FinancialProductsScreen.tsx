@@ -108,23 +108,11 @@ export default function FinancialProductsScreen() {
         )}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <TouchableOpacity style={styles.footerBtn} onPress={openAdd} activeOpacity={0.7}>
-            <Text style={styles.footerText}>Tap to add another account manually</Text>
-          </TouchableOpacity>
-        }
-        ListFooterComponent={
-          productos.length > 0 ? (
-            <TouchableOpacity style={styles.footerBtn} onPress={openAdd} activeOpacity={0.7}>
-              <Text style={styles.footerText}>Tap to add another account manually</Text>
-            </TouchableOpacity>
-          ) : null
+          <Text style={styles.emptyText}>
+            Aún no tienes productos financieros. Usa el botón + para agregar uno.
+          </Text>
         }
       />
-
-      {/* FAB */}
-      <TouchableOpacity style={styles.fab} onPress={openAdd} activeOpacity={0.85}>
-        <Text style={styles.fabIcon}>+</Text>
-      </TouchableOpacity>
 
       <ProductoForm
         visible={showForm}
@@ -226,39 +214,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
-  footerBtn: {
-    marginTop: 8,
-    paddingVertical: 18,
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-    borderRadius: 12,
-    alignItems: 'center',
-    borderStyle: 'dashed',
-  },
-  footerText: {
+  emptyText: {
     color: MidasColors.textSecondary,
-    fontSize: 13,
-  },
-  fab: {
-    position: 'absolute',
-    right: 24,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: MidasColors.gold,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: MidasColors.gold,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.45,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  fabIcon: {
-    color: '#0F0F0F',
-    fontSize: 30,
-    fontWeight: '300',
-    lineHeight: 34,
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 32,
   },
 });

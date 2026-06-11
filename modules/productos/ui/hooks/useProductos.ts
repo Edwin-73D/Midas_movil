@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 
 import type { Producto } from '@/modules/productos/domain/producto.model';
 import {
@@ -6,7 +7,7 @@ import {
   getResumenProductos,
   insertProducto,
   updateProducto,
-  deleteProducto,
+  deleteProductoYDesvincular,
 } from '@/modules/productos/data/producto.service';
 import { transactionEvents } from '@/modules/transacciones/transactionEvents';
 
@@ -38,8 +39,22 @@ export const useProductos = () => {
   };
 
   const removeProducto = (id: number) => {
-    deleteProducto(id);
-    loadData();
+    Alert.alert(
+      'Eliminar producto',
+      '¿Eliminar este producto? Los ahorros asociados quedarán desvinculados pero no se eliminarán.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => {
+            deleteProductoYDesvincular(id);
+            transactionEvents.emit();
+            loadData();
+          },
+        },
+      ]
+    );
   };
 
   return { productos, total, count, addProducto, editProducto, removeProducto };

@@ -127,6 +127,17 @@ export function ProductoAhorrosModal({ visible, producto, onClose }: Props) {
                 {formatCurrency(totalAhorrado)}
               </Text>
             </View>
+            {(producto?.interes ?? 0) > 0 && (
+              <>
+                <View style={styles.statDivider} />
+                <View style={styles.stat}>
+                  <Text style={styles.statLabel}>Proyección (1 mes)</Text>
+                  <Text style={[styles.statValue, { color: '#4CAF50' }]}>
+                    {formatCurrency((producto!.montoNeto ?? 0) * (1 + (producto!.interes!) / 100 / 12))}
+                  </Text>
+                </View>
+              </>
+            )}
           </View>
 
           {ahorros.length === 0 ? (

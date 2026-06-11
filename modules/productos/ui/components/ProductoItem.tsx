@@ -86,6 +86,19 @@ export default function ProductoItem({ producto, onEdit, onDelete, onPress }: Pr
           </Text>
         </View>
       </View>
+
+      <View style={styles.actions}>
+        <TouchableOpacity onPress={() => onEdit(producto)} hitSlop={8} style={styles.actionBtn}>
+          <Text style={styles.editText}>Editar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => producto.id && onDelete(producto.id)}
+          hitSlop={8}
+          style={styles.actionBtn}
+        >
+          <Text style={styles.deleteText}>Eliminar</Text>
+        </TouchableOpacity>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -150,5 +163,24 @@ const styles = StyleSheet.create({
   },
   badgeDebtText: {
     color: '#E57373',
+  },
+  actions: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 4,
+    marginLeft: 8,
+  },
+  actionBtn: {
+    paddingHorizontal: 4,
+  },
+  editText: {
+    color: MidasColors.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  deleteText: {
+    color: '#E74C3C',
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

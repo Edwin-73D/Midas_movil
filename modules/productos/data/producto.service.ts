@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 
 import { db } from '@/db/client';
+import sqlite from '@/db/client';
 import { productoFinanciero } from '@/db/schema';
 import type { Producto } from '@/modules/productos/domain/producto.model';
 
@@ -68,4 +69,16 @@ export const updateProducto = (p: Producto) => {
 export const deleteProducto = (id: number) => {
   if (!db) return;
   db.delete(productoFinanciero).where(eq(productoFinanciero.id, id)).run();
+};
+
+/** Desvincula las transacciones asociadas antes de borrar el producto.
+ *  Necesario porque PRAGMA foreign_keys = ON impide borrar con referencias activas. */
+export const deleteProductoYDesvincular = (id: number): boolean => {
+  if (!db) return false;
+  const tiene = sqlite.getFirstSync<{ n: number }>(
+    'SELECT COUNT(*) AS n FROM transaccion WHERE producto_financiero_id = ?', [id]
+  );
+  sqlite.runSync('UPDATE transaccion SET producto_financiero_id = NULL WHERE producto_financiero_id = ?', [id]);
+  db.delete(productoFinanciero).where(eq(productoFinanciero.id, id)).run();
+  return (tiene?.n ?? 0) > 0;
 };

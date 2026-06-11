@@ -77,31 +77,6 @@ export function BudgetSection() {
         <Text style={styles.seeDetails}>Ver detalle →</Text>
       </View>
 
-      {/* Resumen total / gastado / disponible */}
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>Total</Text>
-          <Text style={styles.summaryValue}>
-            ${Math.round(totalPresupuestado).toLocaleString('es-CO')}
-          </Text>
-        </View>
-        <View style={styles.summarySep} />
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>Gastado</Text>
-          <Text style={[styles.summaryValue, { color: '#E74C3C' }]}>
-            ${Math.round(totalGastado).toLocaleString('es-CO')}
-          </Text>
-        </View>
-        <View style={styles.summarySep} />
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>Disponible</Text>
-          <Text style={[styles.summaryValue, isOver && styles.overText]}>
-            {isOver ? '-$' : '$'}
-            {Math.round(Math.abs(disponible)).toLocaleString('es-CO')}
-          </Text>
-        </View>
-      </View>
-
       {/* Indicador de sobrepresupuesto global */}
       {isOver && (
         <View style={styles.overBanner}>
@@ -196,41 +171,6 @@ const styles = StyleSheet.create({
     color: MidasColors.gold,
     fontSize: 14,
     fontWeight: '700',
-  },
-  // ── Resumen ───────────────────────────────────────────────────────────────
-  summaryCard: {
-    backgroundColor: MidasColors.cardBackground,
-    borderRadius: 14,
-    flexDirection: 'row',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 10,
-    alignItems: 'center',
-  },
-  summaryItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-  },
-  summarySep: {
-    width: 1,
-    height: 32,
-    backgroundColor: '#2A2A2A',
-  },
-  summaryLabel: {
-    color: MidasColors.textSecondary,
-    fontSize: 11,
-    fontWeight: '500',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  summaryValue: {
-    color: MidasColors.textPrimary,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  overText: {
-    color: '#E74C3C',
   },
   // ── Banner de exceso ──────────────────────────────────────────────────────
   overBanner: {
