@@ -44,7 +44,7 @@ export async function interpretarVoz(audioUri: string): Promise<FacturaAnalizada
   if (!API_KEY) throw new Error('API key de Gemini no configurada en .env');
 
   const base64 = await FileSystem.readAsStringAsync(audioUri, {
-    encoding: FileSystem.EncodingType.Base64,
+    encoding: 'base64' as const,
   });
 
   const response = await fetch(ENDPOINT, {
