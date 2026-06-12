@@ -98,7 +98,7 @@ type ProcesarOpts = {
   onPresupuestoGasto: (categoriaId: number, monto: number) => void | Promise<void>;
 };
 
-export function procesarRecurrentes(opts: ProcesarOpts): void {
+export async function procesarRecurrentes(opts: ProcesarOpts): Promise<void> {
   const today = toISODate(new Date());
   const usuarioId = getCurrentUserId();
 
@@ -118,7 +118,7 @@ export function procesarRecurrentes(opts: ProcesarOpts): void {
 
   for (const row of rows) {
     try {
-      registrarTransaccion(
+      await registrarTransaccion(
         {
           type: row.tipo as 'income' | 'expense' | 'saving',
           amount: row.valor_transaccion,

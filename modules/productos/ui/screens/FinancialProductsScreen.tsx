@@ -97,7 +97,7 @@ export default function FinancialProductsScreen() {
       {/* List */}
       <FlatList
         data={productos}
-        keyExtractor={(item) => item.id?.toString() ?? Math.random().toString()}
+        keyExtractor={(item) => String(item.id ?? item.nombre ?? '')}
         renderItem={({ item }) => (
           <ProductoItem
             producto={item}

@@ -1,5 +1,8 @@
-import sqlite from '@/db/client';
-import { addMontoToProductoInternal } from '@/modules/productos/data/producto.service';
+import { eq, sql } from 'drizzle-orm';
+
+import expo, { db } from '@/db/client';
+import { meta, metaAporte, productoFinanciero, transaccion } from '@/db/schema';
+import { metaEvents } from '@/modules/metas/metaEvents';
 import { TransaccionRepository } from '@/modules/transacciones/TransaccionRepository';
 import { transactionEvents } from '@/modules/transacciones/transactionEvents';
 
@@ -8,21 +11,55 @@ type Opts = {
 };
 
 export function eliminarTransaccion(id: number, opts: Opts = {}): void {
+  if (!db) return;
   const tx = TransaccionRepository.getById(id);
   if (!tx) return;
 
   try {
+    // El presupuesto usa runAsync, se actualiza fuera del withTransactionSync
+    // (mismo patrón que registrar-transaccion).
     if (tx.tipo === 'expense' && tx.categoria_id != null) {
       opts.onPresupuestoGasto?.(tx.categoria_id, -tx.valor_transaccion);
-    } else if (tx.tipo === 'saving' && tx.producto_financiero_id != null) {
-      addMontoToProductoInternal(tx.producto_financiero_id, -tx.valor_transaccion);
     }
 
-    if (tx.meta_id != null) {
-      sqlite.runSync('DELETE FROM meta_aporte WHERE transaccion_id = ?', [id]);
-    }
+    expo.withTransactionSync(() => {
+      // Reversar aporte a meta si existía
+      if (tx.meta_id != null) {
+        const aportes = db!
+          .select()
+          .from(metaAporte)
+          .where(eq(metaAporte.transaccionId, id))
+          .all();
+        const totalAporte = aportes.reduce((acc, a) => acc + a.monto, 0);
 
-    sqlite.runSync('DELETE FROM transaccion WHERE ID = ?', [id]);
+        if (totalAporte > 0) {
+          db!.update(meta)
+            .set({ monto: sql`COALESCE(${meta.monto}, 0) - ${totalAporte}` })
+            .where(eq(meta.id, tx.meta_id))
+            .run();
+        }
+
+        db!.delete(metaAporte)
+          .where(eq(metaAporte.transaccionId, id))
+          .run();
+      }
+
+      // Revertir saldo del producto financiero si era un ahorro vinculado
+      if (tx.tipo === 'saving' && tx.producto_financiero_id != null) {
+        db!.update(productoFinanciero)
+          .set({
+            montoNeto: sql`COALESCE(${productoFinanciero.montoNeto}, 0) - ${tx.valor_transaccion}`,
+          })
+          .where(eq(productoFinanciero.id, tx.producto_financiero_id))
+          .run();
+      }
+
+      db!.delete(transaccion)
+        .where(eq(transaccion.id, id))
+        .run();
+    });
+
+    if (tx.meta_id != null) metaEvents.emit();
     transactionEvents.emit();
   } catch (e) {
     console.log('Error eliminarTransaccion:', e);

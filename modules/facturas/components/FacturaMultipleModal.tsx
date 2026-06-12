@@ -64,13 +64,13 @@ export function FacturaMultipleModal({
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, [key]: value } : it)));
   }
 
-  function handleGuardar() {
+  async function handleGuardar() {
     if (!canGuardar) return;
     const toSave = items.filter((it) => it.checked && parseFloat(it.monto) > 0 && it.categoria !== null);
     let errored = false;
     for (const item of toSave) {
       try {
-        registrarTransaccion(
+        await registrarTransaccion(
           {
             type: 'expense',
             amount: parseFloat(item.monto),

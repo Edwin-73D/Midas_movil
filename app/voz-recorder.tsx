@@ -28,6 +28,8 @@ export default function VozRecorderScreen() {
   const [gastos, setGastos] = useState<FacturaAnalizada | null>(null);
   const [lastUri, setLastUri] = useState<string | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
+  const isStartingRef = useRef(false);
+  const shouldCancelRef = useRef(false);
   const rippleAnim = useRef(new Animated.Value(1)).current;
   const { agregarGasto, categorias } = usePresupuestoViewModel();
 
@@ -44,6 +46,9 @@ export default function VozRecorderScreen() {
   );
 
   async function startRecording() {
+    if (isStartingRef.current) return;
+    isStartingRef.current = true;
+    shouldCancelRef.current = false;
     try {
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== 'granted') {
@@ -67,22 +72,40 @@ export default function VozRecorderScreen() {
         100
       );
 
+      // Si el usuario soltó antes de que terminara el setup, cancelar
+      if (shouldCancelRef.current) {
+        await recording.stopAndUnloadAsync();
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+        setFlowState('idle');
+        return;
+      }
+
       recordingRef.current = recording;
       setFlowState('recording');
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : 'Error al iniciar grabación');
       setFlowState('error');
+    } finally {
+      isStartingRef.current = false;
     }
   }
 
   async function stopAndAnalyze() {
+    // Si el inicio aún está en vuelo, marcar para cancelar cuando termine
+    if (isStartingRef.current) {
+      shouldCancelRef.current = true;
+      return;
+    }
+
     const recording = recordingRef.current;
     if (!recording) return;
+
+    // Limpiar la ref antes del try para que quede null en cualquier rama de error
+    recordingRef.current = null;
 
     try {
       await recording.stopAndUnloadAsync();
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
-      recordingRef.current = null;
 
       const uri = recording.getURI();
       if (!uri) throw new Error('No se pudo obtener el audio grabado');
@@ -91,6 +114,7 @@ export default function VozRecorderScreen() {
       rippleAnim.setValue(1);
       await analizarAudio(uri);
     } catch (e) {
+      try { await Audio.setAudioModeAsync({ allowsRecordingIOS: false }); } catch {}
       setErrorMsg(e instanceof Error ? e.message : 'Error al detener grabación');
       setFlowState('error');
     }

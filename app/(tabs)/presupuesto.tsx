@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MidasColors } from '@/constants/theme';
+import { presupuestoEvents } from '../../modules/presupuesto/presupuestoEvents';
 import { usePresupuestoViewModel } from '../../modules/presupuesto/PresupuestoViewModel';
 import { CustomBudgetManager } from '../../modules/presupuesto/ui/CustomBudgetManager';
 
@@ -50,10 +51,8 @@ export default function PresupuestoScreen() {
   const tienePresupuesto = categorias.length > 0;
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      cargarCategorias();
-    }, 1000);
-    return () => clearInterval(interval);
+    cargarCategorias();
+    return presupuestoEvents.subscribe(cargarCategorias);
   }, []);
 
   const total = categorias.reduce((acc, cat: any) => acc + cat.monto_esperado, 0);
@@ -136,8 +135,8 @@ export default function PresupuestoScreen() {
         visible={showCustomManager}
         categoriasIniciales={categoriasParaManager}
         onClose={() => setShowCustomManager(false)}
-        onConfirm={(cats) => {
-          generarPresupuestoDesdeMontos(cats);
+        onConfirm={async (cats) => {
+          await generarPresupuestoDesdeMontos(cats);
           setShowCustomManager(false);
         }}
       />

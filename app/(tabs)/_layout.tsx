@@ -231,7 +231,7 @@ export default function TabLayout() {
         productos={productosPicker}
         onCreateProducto={openCreateProducto}
         onClose={() => setModalVisible(false)}
-        onSubmit={(tx) => {
+        onSubmit={async (tx) => {
           // Resolver categoriaId aquí para reutilizarlo en la plantilla recurrente
           const resolvedCategoriaId =
             tx.type === 'expense' && tx.category
@@ -240,7 +240,7 @@ export default function TabLayout() {
                 )?.ID ?? null)
               : null;
 
-          registrarTransaccion(
+          await registrarTransaccion(
             {
               type: tx.type,
               amount: tx.amount,

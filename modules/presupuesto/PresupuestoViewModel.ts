@@ -25,7 +25,7 @@ export const usePresupuestoViewModel = () => {
    * Reemplaza el contenido actual de la tabla Categoria.
    * El porcentaje se calcula automáticamente sobre el total.
    */
-  const generarPresupuestoDesdeMontos = (
+  const generarPresupuestoDesdeMontos = async (
     cats: { nombre: string; monto: number }[]
   ) => {
     PresupuestoRepository.limpiarCategorias();
@@ -47,7 +47,7 @@ export const usePresupuestoViewModel = () => {
       });
     });
 
-    cargarCategorias();
+    await cargarCategorias();
     presupuestoEvents.emit();
   };
 

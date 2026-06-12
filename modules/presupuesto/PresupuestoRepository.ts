@@ -6,7 +6,15 @@ export const PresupuestoRepository = {
     try {
       const uid = getCurrentUserId();
       sqlite.withTransactionSync(() => {
-        sqlite.runSync("UPDATE transaccion SET categoria_id = NULL WHERE categoria_id IS NOT NULL");
+        if (uid != null) {
+          sqlite.runSync(
+            `UPDATE transaccion SET categoria_id = NULL
+             WHERE categoria_id IS NOT NULL AND usuario_id = ?`,
+            [uid]
+          );
+        } else {
+          sqlite.runSync("UPDATE transaccion SET categoria_id = NULL WHERE categoria_id IS NOT NULL");
+        }
         if (uid != null) {
           sqlite.runSync("DELETE FROM Categoria WHERE usuario_id = ? OR usuario_id IS NULL", [uid]);
         } else {

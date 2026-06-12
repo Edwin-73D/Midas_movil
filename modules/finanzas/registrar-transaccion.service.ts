@@ -22,10 +22,10 @@ type TransactionDeps = {
   onPresupuestoGasto: (categoriaId: number, amount: number) => void | Promise<void>;
 };
 
-export function registrarTransaccion(
+export async function registrarTransaccion(
   input: TransactionInput,
   deps: TransactionDeps
-): void {
+): Promise<void> {
   if (!db) return;
 
   // El ahorro nunca lleva categoría de gasto: no debe contar en el presupuesto.
@@ -67,7 +67,7 @@ export function registrarTransaccion(
 
   // Solo los gastos impactan el presupuesto.
   if (input.type === 'expense' && categoriaId != null) {
-    deps.onPresupuestoGasto(categoriaId, input.amount);
+    await deps.onPresupuestoGasto(categoriaId, input.amount);
   }
 
   transactionEvents.emit();

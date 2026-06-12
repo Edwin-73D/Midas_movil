@@ -114,7 +114,7 @@ export default function FinancialGoalsScreen() {
       ) : (
         <FlatList
           data={metas}
-          keyExtractor={(item) => item.id?.toString() ?? Math.random().toString()}
+          keyExtractor={(item) => String(item.id ?? item.nombre ?? '')}
           renderItem={({ item }) => (
             <MetaItem
               meta={item}

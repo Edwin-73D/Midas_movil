@@ -13,10 +13,8 @@ import type { TransaccionRow } from '@/modules/transacciones/TransaccionReposito
 type Category = 'Needs' | 'Wants';
 
 export function buildInitialData(tx: TransaccionRow, categorias: any[]): InitialTransactionData {
-  const isIncome = tx.tipo === 'income';
-
   let category: Category | null = null;
-  if (!isIncome && tx.categoria_id != null) {
+  if (tx.tipo === 'expense' && tx.categoria_id != null) {
     const cat = categorias.find((c: any) => c.ID === tx.categoria_id);
     const nombre = (cat?.nombre ?? '').toLowerCase();
     if (nombre === 'needs') category = 'Needs';
@@ -24,7 +22,7 @@ export function buildInitialData(tx: TransaccionRow, categorias: any[]): Initial
   }
 
   return {
-    type: isIncome ? 'income' : 'expense',
+    type: tx.tipo ?? 'expense',
     amount: String(tx.valor_transaccion),
     category,
     description: tx.descripcion ?? tx.nombre ?? '',

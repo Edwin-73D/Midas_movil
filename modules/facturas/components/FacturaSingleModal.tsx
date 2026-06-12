@@ -53,10 +53,10 @@ export function FacturaSingleModal({
 
   const isValid = parseFloat(monto) > 0 && categoria !== null;
 
-  function handleGuardar() {
+  async function handleGuardar() {
     if (!isValid) return;
     try {
-      registrarTransaccion(
+      await registrarTransaccion(
         {
           type: 'expense',
           amount: parseFloat(monto),
