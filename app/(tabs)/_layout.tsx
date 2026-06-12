@@ -146,6 +146,13 @@ export default function TabLayout() {
             tabBarIcon: ({ color }) => <IconSymbol size={26} name="wallet.fill" color={color} />,
           }}
         />
+        <Tabs.Screen
+          name="reportes"
+          options={{
+            title: 'Reportes',
+            tabBarIcon: ({ color }) => <IconSymbol size={26} name="chart.bar.fill" color={color} />,
+          }}
+        />
       </Tabs>
 
       {/* Backdrop que cierra el menú */}

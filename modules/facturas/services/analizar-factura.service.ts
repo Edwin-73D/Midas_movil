@@ -1,8 +1,5 @@
+import { GEMINI_API_KEY, GEMINI_ENDPOINT } from '@/modules/shared/ai/gemini.config';
 import type { FacturaAnalizada } from '../domain/factura.types';
-
-const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? '';
-const MODEL = 'gemini-2.0-flash';
-const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
 
 const PROMPT = `Eres un asistente experto en lectura de facturas, recibos y tiquetes de compra.
 Analiza la imagen y extrae toda la información visible. Sé tolerante con texto borroso o parcial — usa tu mejor estimación.
@@ -37,9 +34,9 @@ function extractJson(text: string): string | null {
 }
 
 export async function analizarFactura(base64: string): Promise<FacturaAnalizada> {
-  if (!API_KEY) throw new Error('API key de Gemini no configurada en .env');
+  if (!GEMINI_API_KEY) throw new Error('API key de Gemini no configurada en .env');
 
-  const response = await fetch(ENDPOINT, {
+  const response = await fetch(GEMINI_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

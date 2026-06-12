@@ -1,10 +1,7 @@
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 
 import type { FacturaAnalizada } from '@/modules/facturas/domain/factura.types';
-
-const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? '';
-const MODEL = 'gemini-2.0-flash';
-const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
+import { GEMINI_API_KEY, GEMINI_ENDPOINT } from '@/modules/shared/ai/gemini.config';
 
 const hoy = () => new Date().toISOString().slice(0, 10);
 const ayer = () => {
@@ -41,13 +38,12 @@ function extractJson(text: string): string | null {
 }
 
 export async function interpretarVoz(audioUri: string): Promise<FacturaAnalizada> {
-  if (!API_KEY) throw new Error('API key de Gemini no configurada en .env');
+  if (!GEMINI_API_KEY) throw new Error('API key de Gemini no configurada en .env');
 
-  const base64 = await FileSystem.readAsStringAsync(audioUri, {
-    encoding: 'base64' as const,
-  });
+  // Cast por un desfase de tipos en expo-file-system; el método existe en runtime.
+  const base64 = await (new File(audioUri) as unknown as { base64(): Promise<string> }).base64();
 
-  const response = await fetch(ENDPOINT, {
+  const response = await fetch(GEMINI_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

@@ -51,7 +51,8 @@
         {
           "microphonePermission": "Necesitamos acceso al micrófono para registrar gastos por voz."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,
