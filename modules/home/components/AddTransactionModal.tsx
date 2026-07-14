@@ -14,17 +14,19 @@ import {
   View,
 } from 'react-native';
 
-import { MidasColors } from '@/constants/theme';
+import { useTranslation } from 'react-i18next';
+
+import { type MidasPalette } from '@/constants/theme';
+import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
 
 type TransactionType = 'expense' | 'income' | 'saving';
-type Category = 'Needs' | 'Wants';
 
 export type Frecuencia = 'semanal' | 'mensual';
 
 export interface NewTransaction {
   type: TransactionType;
   amount: number;
-  category: Category | null;
+  category: number | null;
   description: string;
   metaId?: number;
   productoFinancieroId?: number;
@@ -35,11 +37,12 @@ export interface NewTransaction {
 
 export type MetaPickerItem = { id: number; nombre: string };
 export type ProductoPickerItem = { id: number; nombre: string };
+export type PresupuestoCategoriaItem = { ID: number; nombre: string };
 
 export interface InitialTransactionData {
   type: TransactionType;
   amount: string;
-  category: Category | null;
+  category: number | null;
   description: string;
   metaId?: number;
 }
@@ -50,21 +53,12 @@ interface Props {
   onSubmit: (tx: NewTransaction) => void;
   metas: MetaPickerItem[];
   productos?: ProductoPickerItem[];
+  presupuestoCategorias?: PresupuestoCategoriaItem[];
   onCreateProducto?: () => void;
+  onGoToBudget?: () => void;
   initialData?: InitialTransactionData;
   isEditing?: boolean;
 }
-
-const CATEGORIES: { label: Category; color: string }[] = [
-  { label: 'Needs', color: MidasColors.needsColor },
-  { label: 'Wants', color: MidasColors.wantsColor },
-];
-
-const TYPE_TABS: { value: TransactionType; label: string; color: string }[] = [
-  { value: 'expense', label: 'Gasto',   color: '#E74C3C' },
-  { value: 'income',  label: 'Ingreso', color: MidasColors.positive },
-  { value: 'saving',  label: 'Ahorro',  color: MidasColors.gold },
-];
 
 export function AddTransactionModal({
   visible,
@@ -72,13 +66,30 @@ export function AddTransactionModal({
   onSubmit,
   metas,
   productos = [],
+  presupuestoCategorias = [],
   onCreateProducto,
+  onGoToBudget,
   initialData,
   isEditing = false,
 }: Props) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+
+  const TYPE_TABS: { value: TransactionType; label: string; color: string }[] = [
+    { value: 'expense', label: t('transaction.expense'), color: colors.danger },
+    { value: 'income',  label: t('transaction.income'),  color: colors.positive },
+    { value: 'saving',  label: t('transaction.saving'),  color: colors.gold },
+  ];
+
+  const FREQ_LABELS: Record<Frecuencia, string> = {
+    semanal: t('transaction.weekly'),
+    mensual: t('transaction.monthly'),
+  };
+
   const [type,               setType]               = useState<TransactionType>('expense');
   const [amount,             setAmount]             = useState('');
-  const [category,           setCategory]           = useState<Category | null>(null);
+  const [category,           setCategory]           = useState<number | null>(null);
   const [selectedMetaId,     setSelectedMetaId]     = useState<number | null>(null);
   const [selectedProductoId, setSelectedProductoId] = useState<number | null>(null);
   const [description,        setDescription]        = useState('');
@@ -169,7 +180,7 @@ export function AddTransactionModal({
         <View style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>
-              {isEditing ? 'Editar transacción' : 'Nueva transacción'}
+              {isEditing ? t('transaction.edit') : t('transaction.new')}
             </Text>
             <TouchableOpacity onPress={handleClose} hitSlop={12}>
               <Text style={styles.closeIcon}>×</Text>
@@ -210,7 +221,7 @@ export function AddTransactionModal({
                 value={amount}
                 onChangeText={setAmount}
                 placeholder="0.00"
-                placeholderTextColor={MidasColors.textSecondary}
+                placeholderTextColor={colors.textSecondary}
                 keyboardType="decimal-pad"
                 returnKeyType="done"
               />
@@ -219,45 +230,67 @@ export function AddTransactionModal({
             {/* ── Categoría (solo gastos) ───────────────────────────────── */}
             {type === 'expense' && (
               <>
-                <Text style={styles.label}>Categoría</Text>
-                <View style={styles.chipRow}>
-                  {CATEGORIES.map((cat) => {
-                    const selected = category === cat.label;
-                    return (
+                <Text style={styles.label}>{t('transaction.category')}</Text>
+                {presupuestoCategorias.length === 0 ? (
+                  <View style={styles.emptyBox}>
+                    <Text style={styles.hint}>
+                      {t('transaction.noBudgetCategories', 'Debes crear tu presupuesto primero para poder registrar gastos.')}
+                    </Text>
+                    {onGoToBudget && (
                       <TouchableOpacity
-                        key={cat.label}
-                        style={[
-                          styles.chip,
-                          selected && { backgroundColor: cat.color, borderColor: cat.color },
-                        ]}
-                        onPress={() => setCategory(cat.label)}
-                        activeOpacity={0.8}
+                        style={styles.createButton}
+                        onPress={() => { handleClose(); onGoToBudget(); }}
+                        activeOpacity={0.85}
                       >
-                        <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>
-                          {cat.label}
+                        <Text style={styles.createButtonText}>
+                          {t('transaction.goToBudget', 'Ir al presupuesto')}
                         </Text>
                       </TouchableOpacity>
-                    );
-                  })}
-                </View>
+                    )}
+                  </View>
+                ) : (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.metaScroll}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {presupuestoCategorias.map((cat) => {
+                      const selected = category === cat.ID;
+                      return (
+                        <TouchableOpacity
+                          key={cat.ID}
+                          style={[
+                            styles.metaChip,
+                            selected && { backgroundColor: colors.danger, borderColor: colors.danger },
+                          ]}
+                          onPress={() => setCategory(cat.ID)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>
+                            {cat.nombre}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
               </>
             )}
 
             {/* ── Ahorro: producto + meta ───────────────────────────────── */}
             {type === 'saving' && (
               <>
-                <Text style={styles.label}>Producto financiero *</Text>
+                <Text style={styles.label}>{t('transaction.product')}</Text>
                 {productos.length === 0 ? (
                   <View style={styles.emptyBox}>
-                    <Text style={styles.hint}>
-                      Aún no tienes productos financieros. Crea uno para destinar tu ahorro.
-                    </Text>
+                    <Text style={styles.hint}>{t('transaction.noProducts')}</Text>
                     <TouchableOpacity
                       style={styles.createButton}
                       onPress={handleCreateProducto}
                       activeOpacity={0.85}
                     >
-                      <Text style={styles.createButtonText}>+ Crear producto financiero</Text>
+                      <Text style={styles.createButtonText}>{t('transaction.createProduct')}</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -275,8 +308,8 @@ export function AddTransactionModal({
                           style={[
                             styles.metaChip,
                             selected && {
-                              backgroundColor: MidasColors.gold,
-                              borderColor: MidasColors.gold,
+                              backgroundColor: colors.gold,
+                              borderColor: colors.gold,
                             },
                           ]}
                           onPress={() => setSelectedProductoId(p.id)}
@@ -291,11 +324,9 @@ export function AddTransactionModal({
                   </ScrollView>
                 )}
 
-                <Text style={styles.label}>Meta (opcional)</Text>
+                <Text style={styles.label}>{t('transaction.goal')}</Text>
                 {metas.length === 0 ? (
-                  <Text style={styles.hint}>
-                    No tienes metas. Puedes crear una en la pestaña Metas.
-                  </Text>
+                  <Text style={styles.hint}>{t('transaction.noGoals')}</Text>
                 ) : (
                   <ScrollView
                     horizontal
@@ -311,8 +342,8 @@ export function AddTransactionModal({
                           style={[
                             styles.metaChip,
                             selected && {
-                              backgroundColor: MidasColors.savingsColor,
-                              borderColor: MidasColors.savingsColor,
+                              backgroundColor: colors.savingsColor,
+                              borderColor: colors.savingsColor,
                             },
                           ]}
                           onPress={() =>
@@ -334,13 +365,13 @@ export function AddTransactionModal({
             {/* ── Descripción (no para ahorros) ─────────────────────────── */}
             {type !== 'saving' && (
               <>
-                <Text style={styles.label}>Descripción</Text>
+                <Text style={styles.label}>{t('transaction.description')}</Text>
                 <TextInput
                   style={styles.descInput}
                   value={description}
                   onChangeText={setDescription}
-                  placeholder="Ej. Almuerzo con el equipo"
-                  placeholderTextColor={MidasColors.textSecondary}
+                  placeholder={t('transaction.placeholder')}
+                  placeholderTextColor={colors.textSecondary}
                   returnKeyType="done"
                   maxLength={120}
                 />
@@ -352,22 +383,20 @@ export function AddTransactionModal({
               <>
                 <View style={styles.recurRow}>
                   <View style={styles.recurLabelGroup}>
-                    <Text style={styles.recurLabel}>Transacción recurrente</Text>
-                    <Text style={styles.recurSubLabel}>
-                      Se registrará automáticamente según la frecuencia elegida
-                    </Text>
+                    <Text style={styles.recurLabel}>{t('transaction.recurring')}</Text>
+                    <Text style={styles.recurSubLabel}>{t('transaction.recurringSubtitle')}</Text>
                   </View>
                   <Switch
                     value={recurrente}
                     onValueChange={setRecurrente}
-                    trackColor={{ false: '#3A3A3A', true: MidasColors.gold }}
-                    thumbColor={recurrente ? '#0F0F0F' : '#888888'}
+                    trackColor={{ false: colors.border, true: colors.gold }}
+                    thumbColor={recurrente ? colors.onGold : colors.tabBarInactive}
                   />
                 </View>
 
                 {recurrente && (
                   <>
-                    <Text style={styles.label}>Frecuencia</Text>
+                    <Text style={styles.label}>{t('transaction.frequency')}</Text>
                     <View style={styles.chipRow}>
                       {(['semanal', 'mensual'] as Frecuencia[]).map((f) => {
                         const selected = frecuencia === f;
@@ -377,15 +406,15 @@ export function AddTransactionModal({
                             style={[
                               styles.chip,
                               selected && {
-                                backgroundColor: MidasColors.gold,
-                                borderColor: MidasColors.gold,
+                                backgroundColor: colors.gold,
+                                borderColor: colors.gold,
                               },
                             ]}
                             onPress={() => { setFrecuencia(f); setDiaEjecucion(null); }}
                             activeOpacity={0.8}
                           >
-                            <Text style={[styles.chipLabel, selected && { color: '#0F0F0F' }]}>
-                              {f.charAt(0).toUpperCase() + f.slice(1)}
+                            <Text style={[styles.chipLabel, selected && { color: colors.onGold }]}>
+                              {FREQ_LABELS[f]}
                             </Text>
                           </TouchableOpacity>
                         );
@@ -393,22 +422,22 @@ export function AddTransactionModal({
                     </View>
 
                     {/* ── Día de ejecución ─────────────────────────────────── */}
-                    <Text style={styles.label}>Día de ejecución (opcional)</Text>
+                    <Text style={styles.label}>{t('transaction.dayOfExecution')}</Text>
                     {frecuencia === 'semanal' ? (
                       <View style={styles.chipRow}>
-                        {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((d, i) => {
+                        {(t('transaction.daysOfWeek', { returnObjects: true }) as string[]).map((d, i) => {
                           const selected = diaEjecucion === i;
                           return (
                             <TouchableOpacity
                               key={d}
                               style={[
                                 styles.dayChip,
-                                selected && { backgroundColor: MidasColors.gold, borderColor: MidasColors.gold },
+                                selected && { backgroundColor: colors.gold, borderColor: colors.gold },
                               ]}
                               onPress={() => setDiaEjecucion(selected ? null : i)}
                               activeOpacity={0.8}
                             >
-                              <Text style={[styles.dayChipText, selected && { color: '#0F0F0F' }]}>
+                              <Text style={[styles.dayChipText, selected && { color: colors.onGold }]}>
                                 {d}
                               </Text>
                             </TouchableOpacity>
@@ -417,7 +446,7 @@ export function AddTransactionModal({
                       </View>
                     ) : (
                       <View style={styles.dayInputRow}>
-                        <Text style={styles.hint}>Día del mes (1–31):</Text>
+                        <Text style={styles.hint}>{t('transaction.dayOfMonth')}</Text>
                         <TextInput
                           style={styles.dayInput}
                           value={diaEjecucion != null ? String(diaEjecucion) : ''}
@@ -427,7 +456,7 @@ export function AddTransactionModal({
                           }}
                           keyboardType="number-pad"
                           placeholder="—"
-                          placeholderTextColor={MidasColors.textSecondary}
+                          placeholderTextColor={colors.textSecondary}
                           maxLength={2}
                         />
                       </View>
@@ -444,7 +473,7 @@ export function AddTransactionModal({
               disabled={!isValid}
             >
               <Text style={styles.submitLabel}>
-                {isEditing ? 'Guardar cambios' : 'Guardar'}
+                {isEditing ? t('transaction.saveChanges') : t('common.save')}
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -454,216 +483,217 @@ export function AddTransactionModal({
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  sheetWrapper: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: MidasColors.cardBackground,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 36,
-    maxHeight: '90%',
-  },
-  scrollContent: {
-    gap: 16,
-    paddingTop: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  title: {
-    color: MidasColors.textPrimary,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  closeIcon: {
-    color: MidasColors.textSecondary,
-    fontSize: 28,
-    lineHeight: 28,
-  },
-  typeRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  typeButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-    backgroundColor: '#2A2A2A',
-  },
-  typeLabel: {
-    color: MidasColors.textSecondary,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  typeLabelActive: {
-    color: '#0F0F0F',
-  },
-  amountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  currencySymbol: {
-    color: MidasColors.gold,
-    fontSize: 32,
-    fontWeight: '300',
-  },
-  amountInput: {
-    color: MidasColors.textPrimary,
-    fontSize: 48,
-    fontWeight: '300',
-    minWidth: 120,
-    textAlign: 'center',
-  },
-  label: {
-    color: MidasColors.textSecondary,
-    fontSize: 13,
-    fontWeight: '500',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  hint: {
-    color: MidasColors.textSecondary,
-    fontSize: 14,
-  },
-  emptyBox: {
-    gap: 12,
-  },
-  createButton: {
-    backgroundColor: '#2A2A2A',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: MidasColors.gold,
-  },
-  createButtonText: {
-    color: MidasColors.gold,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  chipRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  metaScroll: {
-    gap: 10,
-    paddingVertical: 4,
-  },
-  chip: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#3A3A3A',
-    backgroundColor: 'transparent',
-  },
-  metaChip: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#3A3A3A',
-    backgroundColor: 'transparent',
-  },
-  chipLabel: {
-    color: MidasColors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  chipLabelActive: {
-    color: '#0F0F0F',
-  },
-  descInput: {
-    backgroundColor: '#2A2A2A',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: MidasColors.textPrimary,
-    fontSize: 15,
-  },
-  recurRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#2A2A2A',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  recurLabelGroup: {
-    flex: 1,
-    gap: 2,
-  },
-  recurLabel: {
-    color: MidasColors.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  recurSubLabel: {
-    color: MidasColors.textSecondary,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  submitButton: {
-    backgroundColor: MidasColors.gold,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  submitButtonDisabled: {
-    opacity: 0.4,
-  },
-  submitLabel: {
-    color: '#0F0F0F',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  dayChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#3A3A3A',
-    backgroundColor: 'transparent',
-    minWidth: 40,
-  },
-  dayChipText: {
-    color: MidasColors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  dayInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  dayInput: {
-    backgroundColor: '#2A2A2A',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    color: MidasColors.textPrimary,
-    fontSize: 15,
-    width: 64,
-    textAlign: 'center',
-  },
-});
+const makeStyles = (c: MidasPalette) =>
+  StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: c.overlay,
+    },
+    sheetWrapper: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: c.cardBackground,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 36,
+      maxHeight: '90%',
+    },
+    scrollContent: {
+      gap: 16,
+      paddingTop: 16,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    title: {
+      color: c.textPrimary,
+      fontSize: 18,
+      fontWeight: '600',
+    },
+    closeIcon: {
+      color: c.textSecondary,
+      fontSize: 28,
+      lineHeight: 28,
+    },
+    typeRow: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    typeButton: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 10,
+      alignItems: 'center',
+      backgroundColor: c.inputBackground,
+    },
+    typeLabel: {
+      color: c.textSecondary,
+      fontWeight: '600',
+      fontSize: 14,
+    },
+    typeLabelActive: {
+      color: c.onGold,
+    },
+    amountRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+    },
+    currencySymbol: {
+      color: c.gold,
+      fontSize: 32,
+      fontWeight: '300',
+    },
+    amountInput: {
+      color: c.textPrimary,
+      fontSize: 48,
+      fontWeight: '300',
+      minWidth: 120,
+      textAlign: 'center',
+    },
+    label: {
+      color: c.textSecondary,
+      fontSize: 13,
+      fontWeight: '500',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    hint: {
+      color: c.textSecondary,
+      fontSize: 14,
+    },
+    emptyBox: {
+      gap: 12,
+    },
+    createButton: {
+      backgroundColor: c.inputBackground,
+      borderRadius: 10,
+      paddingVertical: 12,
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: c.gold,
+    },
+    createButtonText: {
+      color: c.gold,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    chipRow: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    metaScroll: {
+      gap: 10,
+      paddingVertical: 4,
+    },
+    chip: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 10,
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: 'transparent',
+    },
+    metaChip: {
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 10,
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: 'transparent',
+    },
+    chipLabel: {
+      color: c.textSecondary,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    chipLabelActive: {
+      color: c.onGold,
+    },
+    descInput: {
+      backgroundColor: c.inputBackground,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      color: c.textPrimary,
+      fontSize: 15,
+    },
+    recurRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: c.inputBackground,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      gap: 12,
+    },
+    recurLabelGroup: {
+      flex: 1,
+      gap: 2,
+    },
+    recurLabel: {
+      color: c.textPrimary,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    recurSubLabel: {
+      color: c.textSecondary,
+      fontSize: 12,
+      lineHeight: 16,
+    },
+    submitButton: {
+      backgroundColor: c.gold,
+      borderRadius: 14,
+      paddingVertical: 16,
+      alignItems: 'center',
+      marginTop: 4,
+    },
+    submitButtonDisabled: {
+      opacity: 0.4,
+    },
+    submitLabel: {
+      color: c.onGold,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    dayChip: {
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: 'transparent',
+      minWidth: 40,
+    },
+    dayChipText: {
+      color: c.textSecondary,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    dayInputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    dayInput: {
+      backgroundColor: c.inputBackground,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      color: c.textPrimary,
+      fontSize: 15,
+      width: 64,
+      textAlign: 'center',
+    },
+  });

@@ -1,12 +1,12 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import 'react-native-reanimated';
 
-import { MidasColors } from '@/constants/theme';
+import '@/modules/shared/i18n/i18n';
 import { AuthProvider, useAuth } from '@/modules/auth/context/AuthContext';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ThemeProvider, useTheme } from '@/modules/shared/theme/ThemeContext';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -36,10 +36,10 @@ function AuthGuard() {
 }
 
 function AppStack() {
-  const colorScheme = useColorScheme();
+  const { colors, scheme } = useTheme();
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <NavThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
@@ -52,9 +52,9 @@ function AppStack() {
           name="transaction-history"
           options={{
             title: 'Historial de Transacciones',
-            headerStyle: { backgroundColor: MidasColors.appBackground },
-            headerTintColor: MidasColors.gold,
-            headerTitleStyle: { color: MidasColors.textPrimary },
+            headerStyle: { backgroundColor: colors.appBackground },
+            headerTintColor: colors.gold,
+            headerTitleStyle: { color: colors.textPrimary },
           }}
         />
         <Stack.Screen
@@ -67,15 +67,17 @@ function AppStack() {
         />
       </Stack>
       <AuthGuard />
-      <StatusBar style="auto" />
-    </ThemeProvider>
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+    </NavThemeProvider>
   );
 }
 
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <AppStack />
+      <ThemeProvider>
+        <AppStack />
+      </ThemeProvider>
     </AuthProvider>
   );
 }

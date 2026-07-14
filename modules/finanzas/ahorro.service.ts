@@ -2,6 +2,7 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 
 import expo, { db } from '@/db/client';
 import { meta, metaAporte, productoFinanciero, transaccion } from '@/db/schema';
+import { ajustarMontoRealAhorros } from '@/modules/finanzas/ahorro-categoria';
 import { metaEvents } from '@/modules/metas/metaEvents';
 import { transactionEvents } from '@/modules/transacciones/transactionEvents';
 
@@ -41,6 +42,40 @@ export function getAhorrosPorProducto(productId: number): AhorroProducto[] {
     descripcion: r.descripcion,
     metaId: r.metaId,
     metaNombre: r.metaNombre,
+  }));
+}
+
+export type DistribucionProducto = {
+  productoId: number | null;
+  productoNombre: string | null;
+  monto: number;
+};
+
+/**
+ * HU-04: distribución del total ahorrado de una meta por producto financiero.
+ * Los ahorros sin producto se agrupan con productoId = null ("Sin producto asignado").
+ */
+export function getDistribucionPorProducto(metaId: number): DistribucionProducto[] {
+  if (!db) return [];
+  const rows = db
+    .select({
+      productoId: transaccion.productoFinancieroId,
+      productoNombre: productoFinanciero.nombre,
+      monto: sql<number>`COALESCE(SUM(${transaccion.valorTransaccion}), 0)`,
+    })
+    .from(transaccion)
+    .leftJoin(
+      productoFinanciero,
+      eq(transaccion.productoFinancieroId, productoFinanciero.id)
+    )
+    .where(and(eq(transaccion.metaId, metaId), eq(transaccion.tipo, 'saving')))
+    .groupBy(transaccion.productoFinancieroId)
+    .all();
+
+  return rows.map((r) => ({
+    productoId: r.productoId,
+    productoNombre: r.productoNombre,
+    monto: r.monto,
   }));
 }
 
@@ -103,6 +138,9 @@ export function eliminarAhorro(transaccionId: number): void {
       db!.delete(metaAporte).where(eq(metaAporte.transaccionId, transaccionId)).run();
     }
 
+    // HU-01: revertir el aporte en la categoría fija "Ahorros".
+    ajustarMontoRealAhorros(-monto);
+
     db!.delete(transaccion).where(eq(transaccion.id, transaccionId)).run();
   });
 
@@ -155,6 +193,9 @@ export function editarMontoAhorro(transaccionId: number, nuevoMonto: number): vo
         .where(eq(metaAporte.transaccionId, transaccionId))
         .run();
     }
+
+    // HU-01: ajustar la categoría fija "Ahorros" por la diferencia.
+    ajustarMontoRealAhorros(delta);
   });
 
   metaEvents.emit();

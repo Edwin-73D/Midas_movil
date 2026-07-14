@@ -8,32 +8,38 @@ import {
   View,
 } from 'react-native';
 
-import { MidasColors } from '@/constants/theme';
+import { useTranslation } from 'react-i18next';
+
+import { type MidasPalette } from '@/constants/theme';
+import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
 import { AddTransactionModal } from '@/modules/home/components/AddTransactionModal';
 import { amountDisplay, transactionTitle } from '@/modules/transacciones/transaccion.display';
 import { TransaccionRepository, type TransaccionRow } from '@/modules/transacciones/TransaccionRepository';
 import { useTransactionActions } from '@/modules/transacciones/hooks/useTransactionActions';
 import { transactionEvents } from '@/modules/transacciones/transactionEvents';
 
-function formatDateTime(raw: string): string {
+function formatDateTime(raw: string, todayLabel: string, yesterdayLabel: string): string {
   const date = new Date(raw.replace(' ', 'T'));
   const now = new Date();
   const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
   const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  if (diffDays === 0) return `Today, ${time}`;
-  if (diffDays === 1) return `Yesterday, ${time}`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  if (diffDays === 0) return `${todayLabel}, ${time}`;
+  if (diffDays === 1) return `${yesterdayLabel}, ${time}`;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 type Section = { title: string; data: TransaccionRow[] };
 
 export default function TransactionHistoryScreen() {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [transactions, setTransactions] = useState<TransaccionRow[]>([]);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
 
   const {
-    editTx, setEditTx, metasPicker, cargarCategorias,
+    editTx, setEditTx, metasPicker, categorias, cargarCategorias,
     handleEdit: baseHandleEdit, handleDelete, handleEditSubmit, buildInitialData,
   } = useTransactionActions();
 
@@ -61,13 +67,13 @@ export default function TransactionHistoryScreen() {
   }
 
   const sections = useMemo<Section[]>(() => {
-    const ahorros = transactions.filter((t) => t.tipo === 'saving');
-    const movimientos = transactions.filter((t) => t.tipo !== 'saving');
+    const ahorros = transactions.filter((tx) => tx.tipo === 'saving');
+    const movimientos = transactions.filter((tx) => tx.tipo !== 'saving');
     const result: Section[] = [];
-    if (movimientos.length) result.push({ title: 'Ingresos y gastos', data: movimientos });
-    if (ahorros.length) result.push({ title: 'Ahorros', data: ahorros });
+    if (movimientos.length) result.push({ title: t('history.sectionMovements'), data: movimientos });
+    if (ahorros.length) result.push({ title: t('history.sectionSavings'), data: ahorros });
     return result;
-  }, [transactions]);
+  }, [transactions, t]);
 
   return (
     <View style={styles.container}>
@@ -80,13 +86,15 @@ export default function TransactionHistoryScreen() {
         keyExtractor={(item) => item.ID.toString()}
         contentContainerStyle={styles.listContent}
         stickySectionHeadersEnabled={false}
-        ListEmptyComponent={<Text style={styles.empty}>No hay transacciones aún.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>{t('history.empty')}</Text>}
         renderSectionHeader={({ section }) => (
           <Text style={styles.sectionHeader}>{section.title}</Text>
         )}
         renderItem={({ item }) => {
           const displayName = transactionTitle(item);
-          const { text, color } = amountDisplay(item.tipo, item.valor_transaccion);
+          const { text, color } = amountDisplay(item.tipo, item.valor_transaccion, colors);
+          const todayLabel = t('common.today');
+          const yesterdayLabel = t('common.yesterday');
           const savingDestino =
             item.tipo === 'saving' && item.meta_nombre
               ? `→ ${item.producto_nombre ?? 'Producto'}`
@@ -102,7 +110,7 @@ export default function TransactionHistoryScreen() {
             >
               <View style={styles.info}>
                 <Text style={styles.txName}>{displayName}</Text>
-                <Text style={styles.txDate}>{formatDateTime(item.fecha_hora)}</Text>
+                <Text style={styles.txDate}>{formatDateTime(item.fecha_hora, todayLabel, yesterdayLabel)}</Text>
                 {savingDestino && <Text style={styles.txDestino}>{savingDestino}</Text>}
               </View>
 
@@ -124,7 +132,7 @@ export default function TransactionHistoryScreen() {
                     onPress={() => handleEdit(item)}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.dropdownText}>Editar</Text>
+                    <Text style={styles.dropdownText}>{t('common.edit')}</Text>
                   </TouchableOpacity>
                   <View style={styles.dropdownDivider} />
                   <TouchableOpacity
@@ -133,7 +141,7 @@ export default function TransactionHistoryScreen() {
                     activeOpacity={0.8}
                   >
                     <Text style={[styles.dropdownText, styles.dropdownTextDanger]}>
-                      Eliminar
+                      {t('common.delete')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -146,6 +154,7 @@ export default function TransactionHistoryScreen() {
       <AddTransactionModal
         visible={editTx !== null}
         metas={metasPicker}
+        presupuestoCategorias={(categorias as any[]).filter((c) => c.clave !== 'ahorros')}
         isEditing
         initialData={editTx ? buildInitialData(editTx) : undefined}
         onClose={() => setEditTx(null)}
@@ -155,101 +164,102 @@ export default function TransactionHistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: MidasColors.appBackground,
-  },
-  listContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  empty: {
-    color: MidasColors.textSecondary,
-    textAlign: 'center',
-    marginTop: 40,
-    fontSize: 14,
-  },
-  sectionHeader: {
-    color: MidasColors.textSecondary,
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: 18,
-    marginBottom: 8,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    gap: 12,
-    backgroundColor: MidasColors.cardBackground,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2A2A2A',
-  },
-  info: {
-    flex: 1,
-  },
-  txName: {
-    color: MidasColors.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  txDate: {
-    color: MidasColors.textSecondary,
-    fontSize: 12,
-  },
-  txDestino: {
-    color: MidasColors.gold,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  amount: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  menuButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  menuDots: {
-    color: MidasColors.textSecondary,
-    fontSize: 20,
-    lineHeight: 22,
-  },
-  dropdown: {
-    position: 'absolute',
-    right: 0,
-    top: 36,
-    backgroundColor: '#2A2A2A',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#3A3A3A',
-    minWidth: 130,
-    zIndex: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  dropdownItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  dropdownDivider: {
-    height: 1,
-    backgroundColor: '#3A3A3A',
-  },
-  dropdownText: {
-    color: MidasColors.textPrimary,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  dropdownTextDanger: {
-    color: '#E74C3C',
-  },
-});
+const makeStyles = (c: MidasPalette) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.appBackground,
+    },
+    listContent: {
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+    },
+    empty: {
+      color: c.textSecondary,
+      textAlign: 'center',
+      marginTop: 40,
+      fontSize: 14,
+    },
+    sectionHeader: {
+      color: c.textSecondary,
+      fontSize: 12,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: 18,
+      marginBottom: 8,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      gap: 12,
+      backgroundColor: c.cardBackground,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    info: {
+      flex: 1,
+    },
+    txName: {
+      color: c.textPrimary,
+      fontSize: 14,
+      fontWeight: '600',
+      marginBottom: 2,
+    },
+    txDate: {
+      color: c.textSecondary,
+      fontSize: 12,
+    },
+    txDestino: {
+      color: c.gold,
+      fontSize: 12,
+      marginTop: 2,
+    },
+    amount: {
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    menuButton: {
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+    },
+    menuDots: {
+      color: c.textSecondary,
+      fontSize: 20,
+      lineHeight: 22,
+    },
+    dropdown: {
+      position: 'absolute',
+      right: 0,
+      top: 36,
+      backgroundColor: c.cardBackground,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: c.border,
+      minWidth: 130,
+      zIndex: 20,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.4,
+      shadowRadius: 8,
+      elevation: 8,
+    },
+    dropdownItem: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    dropdownDivider: {
+      height: 1,
+      backgroundColor: c.border,
+    },
+    dropdownText: {
+      color: c.textPrimary,
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    dropdownTextDanger: {
+      color: c.danger,
+    },
+  });

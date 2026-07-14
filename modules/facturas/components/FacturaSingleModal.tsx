@@ -13,19 +13,13 @@ import {
   View,
 } from 'react-native';
 
-import { MidasColors } from '@/constants/theme';
+import { type MidasPalette } from '@/constants/theme';
+import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
 import { registrarTransaccion } from '@/modules/finanzas/registrar-transaccion.service';
-import type { ExpenseCategory } from '@/modules/shared/finance/categories';
-import { DB_CATEGORY_NAMES } from '@/modules/shared/finance/categories';
 
 import type { FacturaAnalizada } from '../domain/factura.types';
 
 type CategoriaRow = { ID: number; nombre: string };
-
-const CATEGORIES: { label: ExpenseCategory; color: string }[] = [
-  { label: 'Needs', color: MidasColors.needsColor },
-  { label: 'Wants', color: MidasColors.wantsColor },
-];
 
 interface Props {
   visible: boolean;
@@ -44,12 +38,15 @@ export function FacturaSingleModal({
   onGuardar,
   agregarGasto,
 }: Props) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+
   const hoy = new Date().toISOString().slice(0, 10);
 
   const [descripcion, setDescripcion] = useState(factura.comercio);
   const [monto, setMonto] = useState(factura.total > 0 ? String(factura.total) : '');
   const [fecha, setFecha] = useState(factura.fecha ?? hoy);
-  const [categoria, setCategoria] = useState<ExpenseCategory | null>(null);
+  const [categoria, setCategoria] = useState<number | null>(null);
 
   const isValid = parseFloat(monto) > 0 && categoria !== null;
 
@@ -65,10 +62,7 @@ export function FacturaSingleModal({
           metaId: undefined,
         },
         {
-          resolveCategoriaId: (cat) => {
-            const dbName = DB_CATEGORY_NAMES[cat];
-            return categorias.find((c) => c.nombre === dbName)?.ID ?? null;
-          },
+          resolveCategoriaId: () => categoria,
           onPresupuestoGasto: agregarGasto,
         }
       );
@@ -101,7 +95,7 @@ export function FacturaSingleModal({
               style={styles.input}
               value={descripcion}
               onChangeText={setDescripcion}
-              placeholderTextColor={MidasColors.textSecondary}
+              placeholderTextColor={colors.textSecondary}
             />
 
             <Text style={styles.label}>Monto</Text>
@@ -112,7 +106,7 @@ export function FacturaSingleModal({
                 value={monto}
                 onChangeText={setMonto}
                 keyboardType="decimal-pad"
-                placeholderTextColor={MidasColors.textSecondary}
+                placeholderTextColor={colors.textSecondary}
                 placeholder="0.00"
               />
             </View>
@@ -122,31 +116,36 @@ export function FacturaSingleModal({
               style={styles.input}
               value={fecha}
               onChangeText={setFecha}
-              placeholderTextColor={MidasColors.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               placeholder="YYYY-MM-DD"
             />
 
             <Text style={styles.label}>Categoría</Text>
-            <View style={styles.chipRow}>
-              {CATEGORIES.map((cat) => {
-                const selected = categoria === cat.label;
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipRow}
+              keyboardShouldPersistTaps="handled"
+            >
+              {categorias.map((cat) => {
+                const selected = categoria === cat.ID;
                 return (
                   <TouchableOpacity
-                    key={cat.label}
+                    key={cat.ID}
                     style={[
                       styles.chip,
-                      selected && { backgroundColor: cat.color, borderColor: cat.color },
+                      selected && { backgroundColor: colors.danger, borderColor: colors.danger },
                     ]}
-                    onPress={() => setCategoria(cat.label)}
+                    onPress={() => setCategoria(cat.ID)}
                     activeOpacity={0.8}
                   >
                     <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>
-                      {cat.label}
+                      {cat.nombre}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
-            </View>
+            </ScrollView>
 
             <TouchableOpacity
               style={[styles.submitButton, !isValid && styles.submitButtonDisabled]}
@@ -163,108 +162,109 @@ export function FacturaSingleModal({
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  sheetWrapper: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: MidasColors.cardBackground,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 36,
-    maxHeight: '85%',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  title: {
-    color: MidasColors.textPrimary,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  closeIcon: {
-    color: MidasColors.textSecondary,
-    fontSize: 28,
-    lineHeight: 28,
-  },
-  label: {
-    color: MidasColors.textSecondary,
-    fontSize: 12,
-    fontWeight: '500',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-    marginTop: 14,
-  },
-  input: {
-    backgroundColor: '#2A2A2A',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: MidasColors.textPrimary,
-    fontSize: 15,
-  },
-  montoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  currencySymbol: {
-    color: MidasColors.gold,
-    fontSize: 24,
-    fontWeight: '300',
-  },
-  montoInput: {
-    color: MidasColors.textPrimary,
-    fontSize: 36,
-    fontWeight: '300',
-    flex: 1,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 8,
-  },
-  chip: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#3A3A3A',
-    backgroundColor: 'transparent',
-  },
-  chipLabel: {
-    color: MidasColors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  chipLabelActive: {
-    color: '#0F0F0F',
-  },
-  submitButton: {
-    backgroundColor: MidasColors.gold,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  submitButtonDisabled: {
-    opacity: 0.4,
-  },
-  submitLabel: {
-    color: '#0F0F0F',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
+const makeStyles = (c: MidasPalette) =>
+  StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: c.overlay,
+    },
+    sheetWrapper: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: c.cardBackground,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 36,
+      maxHeight: '85%',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 20,
+    },
+    title: {
+      color: c.textPrimary,
+      fontSize: 18,
+      fontWeight: '600',
+    },
+    closeIcon: {
+      color: c.textSecondary,
+      fontSize: 28,
+      lineHeight: 28,
+    },
+    label: {
+      color: c.textSecondary,
+      fontSize: 12,
+      fontWeight: '500',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 8,
+      marginTop: 14,
+    },
+    input: {
+      backgroundColor: c.inputBackground,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      color: c.textPrimary,
+      fontSize: 15,
+    },
+    montoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    currencySymbol: {
+      color: c.gold,
+      fontSize: 24,
+      fontWeight: '300',
+    },
+    montoInput: {
+      color: c.textPrimary,
+      fontSize: 36,
+      fontWeight: '300',
+      flex: 1,
+    },
+    chipRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginBottom: 8,
+    },
+    chip: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 10,
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: 'transparent',
+    },
+    chipLabel: {
+      color: c.textSecondary,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    chipLabelActive: {
+      color: c.onGold,
+    },
+    submitButton: {
+      backgroundColor: c.gold,
+      borderRadius: 14,
+      paddingVertical: 16,
+      alignItems: 'center',
+      marginTop: 20,
+    },
+    submitButtonDisabled: {
+      opacity: 0.4,
+    },
+    submitLabel: {
+      color: c.onGold,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+  });

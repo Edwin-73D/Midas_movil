@@ -13,22 +13,19 @@ import {
   View,
 } from 'react-native';
 
-import { MidasColors } from '@/constants/theme';
+import { type MidasPalette } from '@/constants/theme';
+import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
 import { registrarTransaccion } from '@/modules/finanzas/registrar-transaccion.service';
-import type { ExpenseCategory } from '@/modules/shared/finance/categories';
-import { DB_CATEGORY_NAMES } from '@/modules/shared/finance/categories';
 
 import type { FacturaAnalizada } from '../domain/factura.types';
 
 type CategoriaRow = { ID: number; nombre: string };
 
-const CATEGORIES: ExpenseCategory[] = ['Needs', 'Wants'];
-
 type ItemState = {
   checked: boolean;
   nombre: string;
   monto: string;
-  categoria: ExpenseCategory | null;
+  categoria: number | null;
 };
 
 interface Props {
@@ -48,6 +45,8 @@ export function FacturaMultipleModal({
   onGuardar,
   agregarGasto,
 }: Props) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [items, setItems] = useState<ItemState[]>(() =>
     factura.items.map((it) => ({
       checked: true,
@@ -79,10 +78,7 @@ export function FacturaMultipleModal({
             metaId: undefined,
           },
           {
-            resolveCategoriaId: (cat) => {
-              const dbName = DB_CATEGORY_NAMES[cat];
-              return categorias.find((c) => c.nombre === dbName)?.ID ?? null;
-            },
+            resolveCategoriaId: () => item.categoria,
             onPresupuestoGasto: agregarGasto,
           }
         );
@@ -130,7 +126,7 @@ export function FacturaMultipleModal({
                   value={item.nombre}
                   onChangeText={(v) => updateItem(index, 'nombre', v)}
                   editable={item.checked}
-                  placeholderTextColor={MidasColors.textSecondary}
+                  placeholderTextColor={colors.textSecondary}
                 />
 
                 <View style={styles.montoRow}>
@@ -142,26 +138,26 @@ export function FacturaMultipleModal({
                     keyboardType="decimal-pad"
                     editable={item.checked}
                     placeholder="0.00"
-                    placeholderTextColor={MidasColors.textSecondary}
+                    placeholderTextColor={colors.textSecondary}
                   />
                 </View>
 
                 <View style={styles.catRow}>
-                  {CATEGORIES.map((cat) => {
-                    const selected = item.categoria === cat;
+                  {categorias.map((cat) => {
+                    const selected = item.categoria === cat.ID;
                     return (
                       <TouchableOpacity
-                        key={cat}
+                        key={cat.ID}
                         style={[
                           styles.catChip,
-                          selected && { backgroundColor: MidasColors.gold, borderColor: MidasColors.gold },
+                          selected && { backgroundColor: colors.danger, borderColor: colors.danger },
                           !item.checked && styles.catChipDisabled,
                         ]}
-                        onPress={() => item.checked && updateItem(index, 'categoria', cat)}
+                        onPress={() => item.checked && updateItem(index, 'categoria', cat.ID)}
                         activeOpacity={0.8}
                       >
                         <Text style={[styles.catLabel, selected && styles.catLabelActive]}>
-                          {cat}
+                          {cat.nombre}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -190,151 +186,152 @@ export function FacturaMultipleModal({
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  sheetWrapper: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: MidasColors.cardBackground,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 28,
-    maxHeight: '90%',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  title: {
-    color: MidasColors.textPrimary,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  closeIcon: {
-    color: MidasColors.textSecondary,
-    fontSize: 28,
-    lineHeight: 28,
-  },
-  list: {
-    flex: 1,
-  },
-  itemCard: {
-    backgroundColor: '#242424',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-    gap: 10,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#555',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: MidasColors.gold,
-    borderColor: MidasColors.gold,
-  },
-  checkmark: {
-    color: '#0F0F0F',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  itemIndex: {
-    color: MidasColors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  input: {
-    backgroundColor: '#333',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: MidasColors.textPrimary,
-    fontSize: 14,
-  },
-  inputDisabled: {
-    opacity: 0.4,
-  },
-  montoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  currencySymbol: {
-    color: MidasColors.gold,
-    fontSize: 18,
-  },
-  montoInput: {
-    color: MidasColors.textPrimary,
-    fontSize: 22,
-    fontWeight: '300',
-    flex: 1,
-  },
-  catRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  catChip: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#444',
-    backgroundColor: 'transparent',
-  },
-  catChipDisabled: {
-    opacity: 0.4,
-  },
-  catLabel: {
-    color: MidasColors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  catLabelActive: {
-    color: '#0F0F0F',
-  },
-  footer: {
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#2A2A2A',
-    gap: 12,
-  },
-  countText: {
-    color: MidasColors.textSecondary,
-    fontSize: 13,
-    textAlign: 'center',
-  },
-  submitButton: {
-    backgroundColor: MidasColors.gold,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  submitButtonDisabled: {
-    opacity: 0.4,
-  },
-  submitLabel: {
-    color: '#0F0F0F',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
+const makeStyles = (c: MidasPalette) =>
+  StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: c.overlay,
+    },
+    sheetWrapper: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: c.cardBackground,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 28,
+      maxHeight: '90%',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+    },
+    title: {
+      color: c.textPrimary,
+      fontSize: 18,
+      fontWeight: '600',
+    },
+    closeIcon: {
+      color: c.textSecondary,
+      fontSize: 28,
+      lineHeight: 28,
+    },
+    list: {
+      flex: 1,
+    },
+    itemCard: {
+      backgroundColor: c.inputBackground,
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 12,
+      gap: 10,
+    },
+    checkboxRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    checkbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: c.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkboxChecked: {
+      backgroundColor: c.gold,
+      borderColor: c.gold,
+    },
+    checkmark: {
+      color: c.onGold,
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    itemIndex: {
+      color: c.textSecondary,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    input: {
+      backgroundColor: c.cardBackground,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      color: c.textPrimary,
+      fontSize: 14,
+    },
+    inputDisabled: {
+      opacity: 0.4,
+    },
+    montoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    currencySymbol: {
+      color: c.gold,
+      fontSize: 18,
+    },
+    montoInput: {
+      color: c.textPrimary,
+      fontSize: 22,
+      fontWeight: '300',
+      flex: 1,
+    },
+    catRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    catChip: {
+      flex: 1,
+      paddingVertical: 8,
+      borderRadius: 8,
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: 'transparent',
+    },
+    catChipDisabled: {
+      opacity: 0.4,
+    },
+    catLabel: {
+      color: c.textSecondary,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    catLabelActive: {
+      color: c.onGold,
+    },
+    footer: {
+      paddingTop: 16,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+      gap: 12,
+    },
+    countText: {
+      color: c.textSecondary,
+      fontSize: 13,
+      textAlign: 'center',
+    },
+    submitButton: {
+      backgroundColor: c.gold,
+      borderRadius: 14,
+      paddingVertical: 16,
+      alignItems: 'center',
+    },
+    submitButtonDisabled: {
+      opacity: 0.4,
+    },
+    submitLabel: {
+      color: c.onGold,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+  });

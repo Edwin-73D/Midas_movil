@@ -9,9 +9,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useTranslation } from 'react-i18next';
+
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { MidasColors } from '@/constants/theme';
+import { type MidasPalette } from '@/constants/theme';
 import type { Producto } from '@/modules/productos/domain/producto.model';
+import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
 import { ProductoAhorrosModal } from '../components/ProductoAhorrosModal';
 import ProductoForm from '../components/ProductoForm';
 import ProductoItem from '../components/ProductoItem';
@@ -26,7 +29,10 @@ function formatCurrency(value: number): string {
 }
 
 export default function FinancialProductsScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { productos, total, count, addProducto, editProducto, removeProducto } = useProductos();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Producto | null>(null);
@@ -58,13 +64,10 @@ export default function FinancialProductsScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerIconSlot}>
-          <IconSymbol name="chevron.left" size={24} color={MidasColors.textPrimary} />
-        </View>
-        <Text style={styles.headerTitle}>Financial Products</Text>
-        <View style={styles.headerIconSlot}>
-          <IconSymbol name="bell.fill" size={22} color={MidasColors.textPrimary} />
-        </View>
+        <View style={styles.headerIconSlot} />
+        <Text style={styles.headerTitle}>{t('products.title')}</Text>
+        {/* HU-06: slot vacío para mantener el título centrado (se eliminó la campana). */}
+        <View style={styles.headerIconSlot} />
       </View>
 
       {/* Stats Card */}
@@ -72,25 +75,25 @@ export default function FinancialProductsScreen() {
         <View style={styles.statItem}>
           <Text style={styles.statAmount}>{formatCurrency(total)}</Text>
           <View style={styles.statLabelRow}>
-            <IconSymbol name="chart.bar.fill" size={11} color={MidasColors.textSecondary} />
-            <Text style={styles.statLabel}> Total Net Worth</Text>
+            <IconSymbol name="chart.bar.fill" size={11} color={colors.textSecondary} />
+            <Text style={styles.statLabel}> {t('products.totalNetWorth')}</Text>
           </View>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={styles.statAmount}>{count}</Text>
           <View style={styles.statLabelRow}>
-            <IconSymbol name="checkmark.circle.fill" size={11} color={MidasColors.gold} />
-            <Text style={styles.statLabel}> Active Accounts</Text>
+            <IconSymbol name="checkmark.circle.fill" size={11} color={colors.gold} />
+            <Text style={styles.statLabel}> {t('products.activeAccounts')}</Text>
           </View>
         </View>
       </View>
 
       {/* Section Header */}
       <View style={styles.sectionRow}>
-        <Text style={styles.sectionTitle}>Your Accounts</Text>
+        <Text style={styles.sectionTitle}>{t('products.yourAccounts')}</Text>
         <TouchableOpacity style={styles.addBtn} onPress={openAdd} activeOpacity={0.8}>
-          <Text style={styles.addBtnText}>+ Add Product</Text>
+          <Text style={styles.addBtnText}>{t('products.addProduct')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -108,9 +111,7 @@ export default function FinancialProductsScreen() {
         )}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>
-            Aún no tienes productos financieros. Usa el botón + para agregar uno.
-          </Text>
+          <Text style={styles.emptyText}>{t('products.empty')}</Text>
         }
       />
 
@@ -130,94 +131,95 @@ export default function FinancialProductsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: MidasColors.appBackground,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  headerIconSlot: {
-    width: 36,
-    height: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    color: MidasColors.textPrimary,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  statsCard: {
-    marginHorizontal: 20,
-    backgroundColor: MidasColors.cardBackground,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  statItem: {
-    flex: 1,
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: '#2A2A2A',
-    marginHorizontal: 16,
-  },
-  statAmount: {
-    color: MidasColors.textPrimary,
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 5,
-  },
-  statLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statLabel: {
-    color: MidasColors.textSecondary,
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  sectionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    color: MidasColors.textPrimary,
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  addBtn: {
-    backgroundColor: MidasColors.gold,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  addBtnText: {
-    color: '#0F0F0F',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 120,
-  },
-  emptyText: {
-    color: MidasColors.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 32,
-  },
-});
+const makeStyles = (c: MidasPalette) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.appBackground,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+    },
+    headerIconSlot: {
+      width: 36,
+      height: 36,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    headerTitle: {
+      color: c.textPrimary,
+      fontSize: 18,
+      fontWeight: '700',
+    },
+    statsCard: {
+      marginHorizontal: 20,
+      backgroundColor: c.cardBackground,
+      borderRadius: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 20,
+      paddingHorizontal: 20,
+      marginBottom: 24,
+    },
+    statItem: {
+      flex: 1,
+    },
+    statDivider: {
+      width: 1,
+      height: 40,
+      backgroundColor: c.border,
+      marginHorizontal: 16,
+    },
+    statAmount: {
+      color: c.textPrimary,
+      fontSize: 22,
+      fontWeight: '700',
+      marginBottom: 5,
+    },
+    statLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    statLabel: {
+      color: c.textSecondary,
+      fontSize: 12,
+      fontWeight: '500',
+    },
+    sectionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      marginBottom: 12,
+    },
+    sectionTitle: {
+      color: c.textPrimary,
+      fontSize: 17,
+      fontWeight: '700',
+    },
+    addBtn: {
+      backgroundColor: c.gold,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+    },
+    addBtnText: {
+      color: c.onGold,
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    listContent: {
+      paddingHorizontal: 20,
+      paddingBottom: 120,
+    },
+    emptyText: {
+      color: c.textSecondary,
+      fontSize: 14,
+      textAlign: 'center',
+      marginTop: 32,
+    },
+  });

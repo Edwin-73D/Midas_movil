@@ -1,8 +1,6 @@
 import sqlite from '@/db/client';
 import { getCurrentUserId } from '@/modules/auth/data/session';
 import { registrarTransaccion } from './registrar-transaccion.service';
-import type { ExpenseCategory } from '@/modules/shared/finance/categories';
-
 type Frecuencia = 'semanal' | 'mensual';
 
 type PlantillaInput = {
@@ -122,7 +120,7 @@ export async function procesarRecurrentes(opts: ProcesarOpts): Promise<void> {
         {
           type: row.tipo as 'income' | 'expense' | 'saving',
           amount: row.valor_transaccion,
-          category: null as ExpenseCategory | null,
+          category: row.categoria_id,
           description: row.descripcion ?? row.nombre ?? '',
           metaId: row.meta_id ?? undefined,
           productoFinancieroId: row.producto_financiero_id ?? undefined,

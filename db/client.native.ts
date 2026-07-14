@@ -158,12 +158,30 @@ expo.execSync(`
   )
 `);
 
+// ─── HU-07: caché del consejo financiero IA (uno por usuario/mes) ────────────
+
+expo.execSync(`
+  CREATE TABLE IF NOT EXISTS consejo_financiero (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id  INTEGER,
+    anio        INTEGER NOT NULL,
+    mes         INTEGER NOT NULL,
+    texto       TEXT    NOT NULL,
+    datos_hash  TEXT,
+    updated_at  TEXT    DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (usuario_id, anio, mes)
+  )
+`);
+
 // ─── Migraciones incrementales (idempotentes) ────────────────────────────────
 
 // HU-04: soporte de producto financiero en plantillas recurrentes
 try { expo.execSync('ALTER TABLE transaccion_recurrente ADD COLUMN producto_financiero_id INTEGER'); } catch {}
 // HU-06: día de ejecución configurable en plantillas recurrentes
 try { expo.execSync('ALTER TABLE transaccion_recurrente ADD COLUMN dia_ejecucion INTEGER'); } catch {}
+
+// HU-01: clave estable para la categoría fija de ahorros
+try { expo.execSync('ALTER TABLE Categoria ADD COLUMN clave TEXT'); } catch {}
 
 // HU-02: columna usuario_id en tablas financieras
 try { expo.execSync('ALTER TABLE transaccion ADD COLUMN usuario_id INTEGER'); } catch {}
@@ -197,19 +215,21 @@ try {
 } catch {}
 
 // ─── Limpiar categorías duplicadas de generaciones anteriores.
-// Primero anula las FK en transacciones que apunten a los duplicados, luego borra.
+// Se deduplica por (nombre, usuario_id) para no borrar categorías homónimas de
+// distintos usuarios. Primero anula las FK en transacciones que apunten a los
+// duplicados, luego borra.
 try {
   expo.execSync(`
     UPDATE transaccion SET categoria_id = NULL
     WHERE categoria_id IN (
       SELECT ID FROM Categoria WHERE ID NOT IN (
-        SELECT MAX(ID) FROM Categoria GROUP BY nombre
+        SELECT MAX(ID) FROM Categoria GROUP BY nombre, usuario_id
       )
     )
   `);
   expo.execSync(`
     DELETE FROM Categoria WHERE ID NOT IN (
-      SELECT MAX(ID) FROM Categoria GROUP BY nombre
+      SELECT MAX(ID) FROM Categoria GROUP BY nombre, usuario_id
     )
   `);
 } catch {

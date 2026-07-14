@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { MidasColors } from '@/constants/theme';
-import { PresupuestoRepository } from '@/modules/presupuesto/PresupuestoRepository';
+import { CLAVE_AHORROS, PresupuestoRepository } from '@/modules/presupuesto/PresupuestoRepository';
 import { presupuestoEvents } from '@/modules/presupuesto/presupuestoEvents';
 import { transactionEvents } from '@/modules/transacciones/transactionEvents';
 
@@ -22,6 +21,7 @@ export function BudgetAlerts() {
 
   const alertas = categorias.filter((c) => {
     if (c.monto_esperado <= 0) return false;
+    if (c.clave === CLAVE_AHORROS) return false;
     return c.monto_real / c.monto_esperado >= 0.95;
   });
 

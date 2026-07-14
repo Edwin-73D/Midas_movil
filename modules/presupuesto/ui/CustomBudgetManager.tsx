@@ -12,9 +12,18 @@ import {
   View,
 } from 'react-native';
 
-import { MidasColors } from '@/constants/theme';
+import { useTranslation } from 'react-i18next';
 
-export type CategoriaItem = { nombre: string; monto: number };
+import { type MidasPalette } from '@/constants/theme';
+import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
+
+export type CategoriaItem = {
+  nombre: string;
+  monto: number;
+  // HU-01: la categoría fija de ahorros no se puede renombrar ni eliminar.
+  clave?: string | null;
+  fija?: boolean;
+};
 
 interface Props {
   visible: boolean;
@@ -23,13 +32,19 @@ interface Props {
   onConfirm: (cats: CategoriaItem[]) => void;
 }
 
-const DEFAULTS: CategoriaItem[] = [
-  { nombre: 'Needs',          monto: 0 },
-  { nombre: 'Wants',          monto: 0 },
-  { nombre: 'Savings & Debt', monto: 0 },
-];
+function getDefaults(t: (key: string) => string): CategoriaItem[] {
+  return [
+    { nombre: t('budget.categories.needs'),      monto: 0 },
+    { nombre: t('budget.categories.wants'),      monto: 0 },
+    { nombre: t('budget.categories.savingsDebt'), monto: 0 },
+    { nombre: t('budget.categories.savings'),    monto: 0, clave: 'ahorros', fija: true },
+  ];
+}
 
 export function CustomBudgetManager({ visible, categoriasIniciales, onClose, onConfirm }: Props) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [cats, setCats] = useState<CategoriaItem[]>([]);
 
   useEffect(() => {
@@ -37,10 +52,10 @@ export function CustomBudgetManager({ visible, categoriasIniciales, onClose, onC
       setCats(
         categoriasIniciales.length > 0
           ? categoriasIniciales.map((c) => ({ ...c }))
-          : DEFAULTS.map((c) => ({ ...c }))
+          : getDefaults(t)
       );
     }
-  }, [visible, categoriasIniciales]);
+  }, [visible, categoriasIniciales, t]);
 
   const total = cats.reduce((s, c) => s + (parseFloat(String(c.monto)) || 0), 0);
 
@@ -62,8 +77,10 @@ export function CustomBudgetManager({ visible, categoriasIniciales, onClose, onC
   }
 
   function handleConfirm() {
-    const valid = cats.filter((c) => c.nombre.trim() && c.monto > 0);
-    if (valid.length === 0) return;
+    // La categoría fija siempre se conserva, aunque su monto sea 0.
+    const valid = cats.filter((c) => c.fija || (c.nombre.trim() && c.monto > 0));
+    const tieneNoFija = valid.some((c) => !c.fija && c.monto > 0);
+    if (!tieneNoFija) return;
     onConfirm(valid);
   }
 
@@ -79,7 +96,7 @@ export function CustomBudgetManager({ visible, categoriasIniciales, onClose, onC
         <View style={styles.sheet}>
           {/* ── Header ─────────────────────────────────────────────────── */}
           <View style={styles.header}>
-            <Text style={styles.title}>Configurar presupuesto</Text>
+            <Text style={styles.title}>{t('budget.configureTitle')}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={12}>
               <Text style={styles.closeIcon}>×</Text>
             </TouchableOpacity>
@@ -92,7 +109,7 @@ export function CustomBudgetManager({ visible, categoriasIniciales, onClose, onC
           >
             {/* ── Total ──────────────────────────────────────────────────── */}
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>TOTAL PRESUPUESTADO</Text>
+              <Text style={styles.totalLabel}>{t('budget.totalBudget').toUpperCase()}</Text>
               <Text style={styles.totalValue}>
                 ${Math.round(total).toLocaleString('es-CO')}
               </Text>
@@ -102,14 +119,23 @@ export function CustomBudgetManager({ visible, categoriasIniciales, onClose, onC
             {cats.map((cat, index) => (
               <View key={index} style={styles.catRow}>
                 <View style={styles.catInputGroup}>
-                  <TextInput
-                    style={styles.catNombreInput}
-                    value={cat.nombre}
-                    onChangeText={(v) => updateNombre(index, v)}
-                    placeholder="Categoría"
-                    placeholderTextColor={MidasColors.textSecondary}
-                    maxLength={40}
-                  />
+                  {cat.fija ? (
+                    <View style={[styles.catNombreInput, styles.catNombreLocked]}>
+                      <Text style={styles.catNombreLockedText} numberOfLines={1}>
+                        {cat.nombre}
+                      </Text>
+                      <Text style={styles.lockBadge}>🔒</Text>
+                    </View>
+                  ) : (
+                    <TextInput
+                      style={styles.catNombreInput}
+                      value={cat.nombre}
+                      onChangeText={(v) => updateNombre(index, v)}
+                      placeholder={t('budget.categoryPlaceholder')}
+                      placeholderTextColor={colors.textSecondary}
+                      maxLength={40}
+                    />
+                  )}
                   <View style={styles.montoRow}>
                     <Text style={styles.montoPrefix}>$</Text>
                     <TextInput
@@ -117,18 +143,23 @@ export function CustomBudgetManager({ visible, categoriasIniciales, onClose, onC
                       value={cat.monto > 0 ? String(cat.monto) : ''}
                       onChangeText={(v) => updateMonto(index, v)}
                       placeholder="0"
-                      placeholderTextColor={MidasColors.textSecondary}
+                      placeholderTextColor={colors.textSecondary}
                       keyboardType="numeric"
                     />
                   </View>
                 </View>
-                <TouchableOpacity
-                  style={styles.removeButton}
-                  onPress={() => removeCategoria(index)}
-                  hitSlop={8}
-                >
-                  <Text style={styles.removeIcon}>−</Text>
-                </TouchableOpacity>
+                {cat.fija ? (
+                  // La categoría fija no se puede eliminar; placeholder para alinear.
+                  <View style={styles.removeButtonPlaceholder} />
+                ) : (
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => removeCategoria(index)}
+                    hitSlop={8}
+                  >
+                    <Text style={styles.removeIcon}>−</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             ))}
 
@@ -138,7 +169,7 @@ export function CustomBudgetManager({ visible, categoriasIniciales, onClose, onC
               onPress={addCategoria}
               activeOpacity={0.8}
             >
-              <Text style={styles.addButtonText}>+ Agregar categoría</Text>
+              <Text style={styles.addButtonText}>{t('budget.addCategory')}</Text>
             </TouchableOpacity>
 
             {/* ── Confirmar ─────────────────────────────────────────────── */}
@@ -148,7 +179,7 @@ export function CustomBudgetManager({ visible, categoriasIniciales, onClose, onC
               activeOpacity={0.85}
               disabled={total === 0}
             >
-              <Text style={styles.confirmLabel}>Confirmar presupuesto</Text>
+              <Text style={styles.confirmLabel}>{t('budget.confirm')}</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -157,143 +188,166 @@ export function CustomBudgetManager({ visible, categoriasIniciales, onClose, onC
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  sheetWrapper: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: MidasColors.cardBackground,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 36,
-    maxHeight: '85%',
-  },
-  scrollContent: {
-    gap: 12,
-    paddingTop: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  title: {
-    color: MidasColors.textPrimary,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  closeIcon: {
-    color: MidasColors.textSecondary,
-    fontSize: 28,
-    lineHeight: 28,
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#2A2A2A',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  totalLabel: {
-    color: MidasColors.textSecondary,
-    fontSize: 11,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  totalValue: {
-    color: MidasColors.gold,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  catRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  catInputGroup: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  catNombreInput: {
-    flex: 1,
-    backgroundColor: '#2A2A2A',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: MidasColors.textPrimary,
-    fontSize: 14,
-  },
-  montoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2A2A2A',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    gap: 2,
-    minWidth: 100,
-  },
-  montoPrefix: {
-    color: MidasColors.gold,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  catMontoInput: {
-    flex: 1,
-    color: MidasColors.textPrimary,
-    fontSize: 14,
-    paddingVertical: 10,
-  },
-  removeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#3A3A3A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeIcon: {
-    color: '#E74C3C',
-    fontSize: 20,
-    lineHeight: 22,
-    fontWeight: '600',
-  },
-  addButton: {
-    borderWidth: 1.5,
-    borderColor: MidasColors.gold,
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: MidasColors.gold,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  confirmButton: {
-    backgroundColor: MidasColors.gold,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  confirmButtonDisabled: {
-    opacity: 0.4,
-  },
-  confirmLabel: {
-    color: '#0F0F0F',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
+const makeStyles = (c: MidasPalette) =>
+  StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: c.overlay,
+    },
+    sheetWrapper: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: c.cardBackground,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 36,
+      maxHeight: '85%',
+    },
+    scrollContent: {
+      gap: 12,
+      paddingTop: 16,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    title: {
+      color: c.textPrimary,
+      fontSize: 18,
+      fontWeight: '600',
+    },
+    closeIcon: {
+      color: c.textSecondary,
+      fontSize: 28,
+      lineHeight: 28,
+    },
+    totalRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      backgroundColor: c.inputBackground,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+    },
+    totalLabel: {
+      color: c.textSecondary,
+      fontSize: 11,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    totalValue: {
+      color: c.gold,
+      fontSize: 18,
+      fontWeight: '700',
+    },
+    catRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    catInputGroup: {
+      flex: 1,
+      flexDirection: 'row',
+      gap: 8,
+    },
+    catNombreInput: {
+      flex: 1,
+      backgroundColor: c.inputBackground,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      color: c.textPrimary,
+      fontSize: 14,
+    },
+    catNombreLocked: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: c.gold + '15',
+      borderWidth: 1,
+      borderColor: c.gold + '55',
+    },
+    catNombreLockedText: {
+      color: c.textPrimary,
+      fontSize: 14,
+      fontWeight: '600',
+      flex: 1,
+    },
+    lockBadge: {
+      fontSize: 11,
+      marginLeft: 6,
+    },
+    montoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.inputBackground,
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      gap: 2,
+      minWidth: 100,
+    },
+    montoPrefix: {
+      color: c.gold,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    catMontoInput: {
+      flex: 1,
+      color: c.textPrimary,
+      fontSize: 14,
+      paddingVertical: 10,
+    },
+    removeButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: c.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    removeButtonPlaceholder: {
+      width: 32,
+      height: 32,
+    },
+    removeIcon: {
+      color: c.danger,
+      fontSize: 20,
+      lineHeight: 22,
+      fontWeight: '600',
+    },
+    addButton: {
+      borderWidth: 1.5,
+      borderColor: c.gold,
+      borderStyle: 'dashed',
+      borderRadius: 12,
+      paddingVertical: 12,
+      alignItems: 'center',
+    },
+    addButtonText: {
+      color: c.gold,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    confirmButton: {
+      backgroundColor: c.gold,
+      borderRadius: 14,
+      paddingVertical: 16,
+      alignItems: 'center',
+      marginTop: 4,
+    },
+    confirmButtonDisabled: {
+      opacity: 0.4,
+    },
+    confirmLabel: {
+      color: c.onGold,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+  });

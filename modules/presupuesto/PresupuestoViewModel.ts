@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { actualizarMontoReal, PresupuestoRepository } from "./PresupuestoRepository";
+import { actualizarMontoReal, CLAVE_AHORROS, PresupuestoRepository } from "./PresupuestoRepository";
 import { presupuestoEvents } from "./presupuestoEvents";
+
+type CategoriaInput = { nombre: string; monto: number; clave?: string | null };
 
 export const usePresupuestoViewModel = () => {
   const [categorias, setCategorias] = useState<any[]>([]);
@@ -25,10 +27,10 @@ export const usePresupuestoViewModel = () => {
    * Reemplaza el contenido actual de la tabla Categoria.
    * El porcentaje se calcula automáticamente sobre el total.
    */
-  const generarPresupuestoDesdeMontos = async (
-    cats: { nombre: string; monto: number }[]
-  ) => {
+  const generarPresupuestoDesdeMontos = async (cats: CategoriaInput[]) => {
+    // limpiarCategorias preserva la categoría fija de ahorros (HU-01).
     PresupuestoRepository.limpiarCategorias();
+    PresupuestoRepository.ensureCategoriaAhorros();
 
     const totalMonto = cats.reduce((s, c) => s + c.monto, 0);
 
@@ -38,13 +40,19 @@ export const usePresupuestoViewModel = () => {
           ? Math.round((cat.monto / totalMonto) * 1000) / 10
           : 0;
 
-      PresupuestoRepository.insertarCategoria({
-        nombre: cat.nombre,
-        porcentaje,
-        monto_esperado: cat.monto,
-        monto_real: 0,
-        descripcion: '',
-      });
+      if (cat.clave === CLAVE_AHORROS) {
+        // La categoría fija ya existe: solo se actualiza su presupuesto,
+        // conservando su monto_real acumulado por los ahorros.
+        PresupuestoRepository.actualizarPresupuestoAhorros(cat.monto, porcentaje);
+      } else {
+        PresupuestoRepository.insertarCategoria({
+          nombre: cat.nombre,
+          porcentaje,
+          monto_esperado: cat.monto,
+          monto_real: 0,
+          descripcion: '',
+        });
+      }
     });
 
     await cargarCategorias();

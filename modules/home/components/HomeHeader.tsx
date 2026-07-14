@@ -1,24 +1,31 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
+  Dimensions,
   Modal,
   Pressable,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 
-import { MidasColors } from '@/constants/theme';
+import { useTranslation } from 'react-i18next';
+
+import { type MidasPalette } from '@/constants/theme';
 import { useAuth } from '@/modules/auth/context/AuthContext';
+import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getGreeting(): string {
+function getGreetingKey(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Buenos días,';
-  if (hour < 18) return 'Buenas tardes,';
-  return 'Buenas noches,';
+  if (hour >= 5 && hour < 12) return 'greeting.morning';
+  if (hour >= 12 && hour < 18) return 'greeting.afternoon';
+  return 'greeting.evening';
 }
 
 function getInitial(username: string): string {
@@ -36,6 +43,9 @@ function LogoutModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <Modal
       visible={visible}
@@ -44,43 +54,24 @@ function LogoutModal({
       onRequestClose={onCancel}
       statusBarTranslucent
     >
-      {/* Overlay: cierra el modal al tocar fuera */}
       <Pressable style={styles.overlay} onPress={onCancel} />
 
-      {/* Diálogo centrado */}
       <View style={styles.dialogWrapper} pointerEvents="box-none">
         <View style={styles.dialog}>
-          {/* Ícono decorativo */}
           <View style={styles.dialogIconWrap}>
-            <Ionicons
-              name="log-out-outline"
-              size={28}
-              color={MidasColors.gold}
-            />
+            <Ionicons name="log-out-outline" size={28} color={colors.gold} />
           </View>
 
-          <Text style={styles.dialogTitle}>Cerrar sesión</Text>
-          <Text style={styles.dialogMessage}>
-            ¿Quieres salir de la sesión?
-          </Text>
+          <Text style={styles.dialogTitle}>{t('settings.confirmTitle')}</Text>
+          <Text style={styles.dialogMessage}>{t('settings.confirmMessage')}</Text>
 
           <View style={styles.dialogButtons}>
-            {/* No */}
-            <TouchableOpacity
-              style={styles.btnNo}
-              onPress={onCancel}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.btnNoLabel}>No</Text>
+            <TouchableOpacity style={styles.btnNo} onPress={onCancel} activeOpacity={0.8}>
+              <Text style={styles.btnNoLabel}>{t('common.no')}</Text>
             </TouchableOpacity>
 
-            {/* Sí */}
-            <TouchableOpacity
-              style={styles.btnSi}
-              onPress={onConfirm}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.btnSiLabel}>Sí</Text>
+            <TouchableOpacity style={styles.btnSi} onPress={onConfirm} activeOpacity={0.85}>
+              <Text style={styles.btnSiLabel}>{t('common.yes')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -92,23 +83,34 @@ function LogoutModal({
 // ─── Header ──────────────────────────────────────────────────────────────────
 
 export function HomeHeader() {
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
+  const { colors, scheme, toggle } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+
   const [showLogout, setShowLogout] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const triggerRef = useRef<View>(null);
 
   const username = user?.username ?? 'Usuario';
-  const initial  = getInitial(username);
-  const greeting = getGreeting();
+  const initial = getInitial(username);
+  const greeting = t(getGreetingKey());
+
+  const openMenu = () => {
+    triggerRef.current?.measureInWindow((x, y, w, h) => {
+      setMenuPos({ top: y + h + 4, right: SCREEN_WIDTH - (x + w) });
+    });
+  };
+  const closeMenu = () => setMenuPos(null);
 
   function handleConfirmLogout() {
     setShowLogout(false);
     logout();
-    // El guard en AuthContext redirige automáticamente a /login
   }
 
   return (
     <>
       <View style={styles.row}>
-        {/* Sección izquierda: avatar + saludo */}
         <View style={styles.left}>
           <View style={styles.avatar}>
             <Text style={styles.initial}>{initial}</Text>
@@ -119,22 +121,57 @@ export function HomeHeader() {
           </View>
         </View>
 
-        {/* Botón logout (derecha) */}
+        {/* Menú de ajustes (HU-10) */}
         <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={() => setShowLogout(true)}
+          ref={triggerRef}
+          style={styles.menuButton}
+          onPress={openMenu}
           activeOpacity={0.7}
           hitSlop={10}
         >
-          <Ionicons
-            name="log-out-outline"
-            size={22}
-            color={MidasColors.textSecondary}
-          />
+          <Ionicons name="ellipsis-vertical" size={20} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
-      {/* Modal de confirmación */}
+      {/* Dropdown de ajustes */}
+      <Modal
+        visible={menuPos != null}
+        transparent
+        animationType="fade"
+        onRequestClose={closeMenu}
+        statusBarTranslucent
+      >
+        <Pressable style={styles.menuOverlay} onPress={closeMenu} />
+        {menuPos && (
+          <View style={[styles.menu, { top: menuPos.top, right: menuPos.right }]}>
+            <View style={styles.menuRow}>
+              <Ionicons name="moon-outline" size={18} color={colors.textPrimary} />
+              <Text style={styles.menuRowText}>{t('settings.darkMode')}</Text>
+              <Switch
+                value={scheme === 'dark'}
+                onValueChange={toggle}
+                trackColor={{ false: colors.border, true: colors.gold }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+
+            <View style={styles.menuSeparator} />
+
+            <TouchableOpacity
+              style={styles.menuRow}
+              activeOpacity={0.7}
+              onPress={() => {
+                closeMenu();
+                setShowLogout(true);
+              }}
+            >
+              <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+              <Text style={[styles.menuRowText, { color: colors.danger }]}>{t('settings.signOut')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </Modal>
+
       <LogoutModal
         visible={showLogout}
         onConfirm={handleConfirmLogout}
@@ -146,133 +183,167 @@ export function HomeHeader() {
 
 // ─── Estilos ─────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  // ── Header ────────────────────────────────────────────────────────────────
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 8,
-  },
-  left: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: MidasColors.gold,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  initial: {
-    color: '#0F0F0F',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  greeting: {
-    color: MidasColors.textSecondary,
-    fontSize: 13,
-  },
-  name: {
-    color: MidasColors.textPrimary,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  logoutButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: MidasColors.cardBackground,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-  },
-  // ── Modal overlay ─────────────────────────────────────────────────────────
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-  },
-  dialogWrapper: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  // ── Diálogo ───────────────────────────────────────────────────────────────
-  dialog: {
-    backgroundColor: MidasColors.cardBackground,
-    borderRadius: 20,
-    paddingHorizontal: 28,
-    paddingTop: 28,
-    paddingBottom: 24,
-    width: '100%',
-    alignItems: 'center',
-    gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 16,
-  },
-  dialogIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: MidasColors.gold + '18',
-    borderWidth: 1,
-    borderColor: MidasColors.gold + '40',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  dialogTitle: {
-    color: MidasColors.textPrimary,
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  dialogMessage: {
-    color: MidasColors.textSecondary,
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 6,
-  },
-  // ── Botones ───────────────────────────────────────────────────────────────
-  dialogButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-    marginTop: 4,
-  },
-  btnNo: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    backgroundColor: '#2A2A2A',
-    borderWidth: 1,
-    borderColor: '#3A3A3A',
-  },
-  btnNoLabel: {
-    color: MidasColors.textPrimary,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  btnSi: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    backgroundColor: MidasColors.gold,
-  },
-  btnSiLabel: {
-    color: '#0F0F0F',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-});
+const makeStyles = (c: MidasPalette) =>
+  StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingTop: 8,
+    },
+    left: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    avatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: c.gold,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    initial: {
+      color: c.onGold,
+      fontSize: 18,
+      fontWeight: '700',
+    },
+    greeting: {
+      color: c.textSecondary,
+      fontSize: 13,
+    },
+    name: {
+      color: c.textPrimary,
+      fontSize: 18,
+      fontWeight: '700',
+    },
+    menuButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: c.cardBackground,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    // ── Dropdown de ajustes ───────────────────────────────────────────────
+    menuOverlay: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    menu: {
+      position: 'absolute',
+      minWidth: 210,
+      backgroundColor: c.cardBackground,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      paddingVertical: 4,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.4,
+      shadowRadius: 12,
+      elevation: 12,
+    },
+    menuRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    menuRowText: {
+      flex: 1,
+      color: c.textPrimary,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    menuSeparator: {
+      height: 1,
+      backgroundColor: c.border,
+      marginHorizontal: 8,
+    },
+    // ── Modal overlay / diálogo logout ────────────────────────────────────
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: c.overlay,
+    },
+    dialogWrapper: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 40,
+    },
+    dialog: {
+      backgroundColor: c.cardBackground,
+      borderRadius: 20,
+      paddingHorizontal: 28,
+      paddingTop: 28,
+      paddingBottom: 24,
+      width: '100%',
+      alignItems: 'center',
+      gap: 10,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.5,
+      shadowRadius: 20,
+      elevation: 16,
+    },
+    dialogIconWrap: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: c.gold + '18',
+      borderWidth: 1,
+      borderColor: c.gold + '40',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    dialogTitle: {
+      color: c.textPrimary,
+      fontSize: 18,
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    dialogMessage: {
+      color: c.textSecondary,
+      fontSize: 15,
+      textAlign: 'center',
+      lineHeight: 22,
+      marginBottom: 6,
+    },
+    dialogButtons: {
+      flexDirection: 'row',
+      gap: 12,
+      width: '100%',
+      marginTop: 4,
+    },
+    btnNo: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+      backgroundColor: c.inputBackground,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    btnNoLabel: {
+      color: c.textPrimary,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    btnSi: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+      backgroundColor: c.gold,
+    },
+    btnSiLabel: {
+      color: c.onGold,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+  });

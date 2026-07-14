@@ -6,8 +6,6 @@ import {
 import { getMetasSync } from '@/modules/metas/data/meta.service';
 import { getProductosSync } from '@/modules/productos/data/producto.service';
 import { usePresupuestoViewModel } from '@/modules/presupuesto/PresupuestoViewModel';
-import type { ExpenseCategory } from '@/modules/shared/finance/categories';
-import { DB_CATEGORY_NAMES } from '@/modules/shared/finance/categories';
 import { Tabs, router, useSegments } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -20,20 +18,25 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useTranslation } from 'react-i18next';
+
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { MidasColors } from '@/constants/theme';
+import { type MidasPalette } from '@/constants/theme';
 import {
   AddTransactionModal,
   type MetaPickerItem,
   type ProductoPickerItem,
+  type PresupuestoCategoriaItem,
 } from '@/modules/home/components/AddTransactionModal';
-
-type CategoriaRow = { ID: number; nombre: string };
+import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
 
 export default function TabLayout() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const segments = useSegments();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [modalVisible, setModalVisible] = useState(false);
   const [metasPicker, setMetasPicker] = useState<MetaPickerItem[]>([]);
   const [productosPicker, setProductosPicker] = useState<ProductoPickerItem[]>([]);
@@ -107,12 +110,12 @@ export default function TabLayout() {
         screenOptions={{
           headerShown: false,
           tabBarButton: HapticTab,
-          tabBarActiveTintColor: MidasColors.gold,
-          tabBarInactiveTintColor: MidasColors.tabBarInactive,
+          tabBarActiveTintColor: colors.gold,
+          tabBarInactiveTintColor: colors.tabBarInactive,
           tabBarLabelStyle: { fontSize: 11 },
           tabBarStyle: {
-            backgroundColor: MidasColors.tabBarBackground,
-            borderTopColor: '#222222',
+            backgroundColor: colors.tabBarBackground,
+            borderTopColor: colors.border,
             borderTopWidth: 1,
             height: 60 + insets.bottom,
             paddingBottom: insets.bottom || 8,
@@ -121,35 +124,36 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Inicio',
+            title: t('nav.home'),
             tabBarIcon: ({ color }) => <IconSymbol size={26} name="house.fill" color={color} />,
           }}
         />
         <Tabs.Screen
           name="metas"
           options={{
-            title: 'Metas',
+            title: t('nav.goals'),
             tabBarIcon: ({ color }) => <IconSymbol size={26} name="target" color={color} />,
           }}
         />
+        {/* HU-02: el presupuesto solo se accede desde el widget de inicio.
+            href: null mantiene la ruta viva pero la oculta de la barra. */}
         <Tabs.Screen
           name="presupuesto"
           options={{
-            title: 'Presupuesto',
-            tabBarIcon: ({ color }) => <IconSymbol size={26} name="creditcard.fill" color={color} />,
+            href: null,
           }}
         />
         <Tabs.Screen
           name="productos"
           options={{
-            title: 'Productos',
+            title: t('nav.products'),
             tabBarIcon: ({ color }) => <IconSymbol size={26} name="wallet.fill" color={color} />,
           }}
         />
         <Tabs.Screen
           name="reportes"
           options={{
-            title: 'Reportes',
+            title: t('nav.reports'),
             tabBarIcon: ({ color }) => <IconSymbol size={26} name="chart.bar.fill" color={color} />,
           }}
         />
@@ -171,7 +175,7 @@ export default function TabLayout() {
             pointerEvents={fabOpen ? 'auto' : 'none'}
           >
             <TouchableOpacity style={styles.menuLabel} onPress={openVoz} activeOpacity={0.8}>
-              <Text style={styles.menuLabelText}>Registrar por voz</Text>
+              <Text style={styles.menuLabelText}>{t('fab.voice')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.menuDot} onPress={openVoz} activeOpacity={0.8}>
               <IconSymbol name="mic.fill" size={22} color="#0F0F0F" />
@@ -188,7 +192,7 @@ export default function TabLayout() {
             pointerEvents={fabOpen ? 'auto' : 'none'}
           >
             <TouchableOpacity style={styles.menuLabel} onPress={openScanner} activeOpacity={0.8}>
-              <Text style={styles.menuLabelText}>Escanear factura</Text>
+              <Text style={styles.menuLabelText}>{t('fab.receipt')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.menuDot} onPress={openScanner} activeOpacity={0.8}>
               <IconSymbol name="camera.fill" size={22} color="#0F0F0F" />
@@ -209,7 +213,7 @@ export default function TabLayout() {
               onPress={openTransactionModal}
               activeOpacity={0.8}
             >
-              <Text style={styles.menuLabelText}>Nueva transacción</Text>
+              <Text style={styles.menuLabelText}>{t('fab.transaction')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.menuDot}
@@ -236,22 +240,19 @@ export default function TabLayout() {
         visible={modalVisible}
         metas={metasPicker}
         productos={productosPicker}
+        presupuestoCategorias={(categorias as PresupuestoCategoriaItem[]).filter(c => (c as any).clave !== 'ahorros')}
         onCreateProducto={openCreateProducto}
+        onGoToBudget={() => { setModalVisible(false); router.push('/presupuesto'); }}
         onClose={() => setModalVisible(false)}
         onSubmit={async (tx) => {
-          // Resolver categoriaId aquí para reutilizarlo en la plantilla recurrente
           const resolvedCategoriaId =
-            tx.type === 'expense' && tx.category
-              ? ((categorias as CategoriaRow[]).find(
-                  (c) => c.nombre === DB_CATEGORY_NAMES[tx.category as ExpenseCategory]
-                )?.ID ?? null)
-              : null;
+            tx.type === 'expense' && tx.category != null ? tx.category : null;
 
           await registrarTransaccion(
             {
               type: tx.type,
               amount: tx.amount,
-              category: tx.category as ExpenseCategory | null,
+              category: tx.category,
               description: tx.description,
               metaId: tx.metaId,
               productoFinancieroId: tx.productoFinancieroId,
@@ -288,71 +289,75 @@ export default function TabLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-  },
-  fab: {
-    position: 'absolute',
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: MidasColors.gold,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: MidasColors.gold,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.45,
-    shadowRadius: 8,
-    elevation: 8,
-    zIndex: 10,
-  },
-  fabIcon: {
-    color: '#0F0F0F',
-    fontSize: 30,
-    fontWeight: '300',
-    lineHeight: 34,
-  },
-  fabIconOpen: {
-    fontSize: 36,
-    lineHeight: 36,
-  },
-  menuItem: {
-    position: 'absolute',
-    right: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    zIndex: 9,
-  },
-  menuLabel: {
-    backgroundColor: MidasColors.cardBackground,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  menuLabelText: {
-    color: MidasColors.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  menuDot: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: MidasColors.gold,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-});
+const makeStyles = (c: MidasPalette) =>
+  StyleSheet.create({
+    wrapper: {
+      flex: 1,
+    },
+    fab: {
+      position: 'absolute',
+      left: '50%',
+      marginLeft: -28,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: c.gold,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: c.gold,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.45,
+      shadowRadius: 8,
+      elevation: 8,
+      zIndex: 10,
+    },
+    fabIcon: {
+      color: c.onGold,
+      fontSize: 30,
+      fontWeight: '300',
+      lineHeight: 34,
+    },
+    fabIconOpen: {
+      fontSize: 36,
+      lineHeight: 36,
+    },
+    menuItem: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      alignItems: 'center',
+      zIndex: 9,
+    },
+    menuLabel: {
+      position: 'absolute',
+      right: '50%',
+      marginRight: 32,
+      backgroundColor: c.cardBackground,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 10,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 4,
+    },
+    menuLabelText: {
+      color: c.textPrimary,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    menuDot: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: c.gold,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 4,
+    },
+  });

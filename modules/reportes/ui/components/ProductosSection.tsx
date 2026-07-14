@@ -1,15 +1,19 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
-import { MidasColors } from '@/constants/theme';
+import { type MidasPalette } from '@/constants/theme';
+import { useThemedStyles } from '@/modules/shared/theme/ThemeContext';
 import type { ProductoReporte } from '../../domain/report.model';
 import { fmtMoney } from '../format';
 
 export function ProductosSection({ productos }: { productos: ProductoReporte[] }) {
+  const { t } = useTranslation();
+  const styles = useThemedStyles(makeStyles);
   if (productos.length === 0) return null;
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Productos financieros</Text>
+      <Text style={styles.sectionTitle}>{t('reports.financialProducts')}</Text>
       <View style={styles.card}>
         {productos.map((p) => (
           <View key={p.nombre} style={styles.row}>
@@ -18,11 +22,11 @@ export function ProductosSection({ productos }: { productos: ProductoReporte[] }
               <Text style={styles.saldo}>{fmtMoney(p.saldo)}</Text>
             </View>
             <Text style={styles.detalle}>
-              Aportado en período: {fmtMoney(p.aportadoPeriodo)}
+              {t('reports.contributed')}: {fmtMoney(p.aportadoPeriodo)}
             </Text>
             <Text style={styles.detalle}>
-              Interés estimado: {fmtMoney(p.interesEstimado)}
-              {p.sinTasa ? '  (sin tasa configurada)' : ''}
+              {t('reports.estimatedInterest')}: {fmtMoney(p.interesEstimado)}
+              {p.sinTasa ? `  ${t('reports.noRate')}` : ''}
             </Text>
           </View>
         ))}
@@ -31,38 +35,39 @@ export function ProductosSection({ productos }: { productos: ProductoReporte[] }
   );
 }
 
-const styles = StyleSheet.create({
-  section: { gap: 10 },
-  sectionTitle: {
-    color: MidasColors.textPrimary,
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  card: {
-    backgroundColor: MidasColors.cardBackground,
-    borderRadius: 16,
-    padding: 16,
-    gap: 14,
-  },
-  row: { gap: 4 },
-  rowHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  nombre: {
-    color: MidasColors.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
-    flex: 1,
-  },
-  saldo: {
-    color: MidasColors.textPrimary,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  detalle: {
-    color: MidasColors.textSecondary,
-    fontSize: 12,
-  },
-});
+const makeStyles = (c: MidasPalette) =>
+  StyleSheet.create({
+    section: { gap: 10 },
+    sectionTitle: {
+      color: c.textPrimary,
+      fontSize: 17,
+      fontWeight: '700',
+    },
+    card: {
+      backgroundColor: c.cardBackground,
+      borderRadius: 16,
+      padding: 16,
+      gap: 14,
+    },
+    row: { gap: 4 },
+    rowHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    nombre: {
+      color: c.textPrimary,
+      fontSize: 14,
+      fontWeight: '600',
+      flex: 1,
+    },
+    saldo: {
+      color: c.textPrimary,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    detalle: {
+      color: c.textSecondary,
+      fontSize: 12,
+    },
+  });

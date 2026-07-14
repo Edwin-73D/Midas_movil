@@ -1,9 +1,21 @@
-import React from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import {
+  Alert,
+  Dimensions,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { MidasColors } from '@/constants/theme';
+import { type MidasPalette } from '@/constants/theme';
 import type { Producto } from '@/modules/productos/domain/producto.model';
+import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -29,13 +41,13 @@ function formatRelativeDate(dateStr?: string): string {
   }
 }
 
-function getIconConfig(tipo: string, entidad: string): { icon: 'creditcard.fill' | 'banknote.fill' | 'arrow.up.right' | 'building.columns.fill'; bg: string; color: string } {
+function getIconConfig(tipo: string, entidad: string, gold: string): { icon: 'creditcard.fill' | 'banknote.fill' | 'arrow.up.right' | 'building.columns.fill'; bg: string; color: string } {
   if (tipo === 'debt') return { icon: 'creditcard.fill', bg: '#E5737322', color: '#E57373' };
   const lower = (entidad ?? '').toLowerCase();
   if (lower.includes('saving') || lower.includes('cash') || lower.includes('emergency'))
     return { icon: 'banknote.fill', bg: '#81C78422', color: '#81C784' };
   if (lower.includes('fund') || lower.includes('invest') || lower.includes('vanguard') || lower.includes('index'))
-    return { icon: 'arrow.up.right', bg: `${MidasColors.gold}22`, color: MidasColors.gold };
+    return { icon: 'arrow.up.right', bg: `${gold}22`, color: gold };
   return { icon: 'building.columns.fill', bg: '#64B5F622', color: '#64B5F6' };
 }
 
@@ -47,18 +59,35 @@ interface Props {
 }
 
 export default function ProductoItem({ producto, onEdit, onDelete, onPress }: Props) {
-  const { icon, bg, color } = getIconConfig(producto.tipo, producto.entidadFinanciera ?? '');
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const { icon, bg, color } = getIconConfig(producto.tipo, producto.entidadFinanciera ?? '', colors.gold);
 
-  const handleLongPress = () => {
-    Alert.alert(producto.nombre, '¿Qué deseas hacer?', [
-      { text: 'Editar', onPress: () => onEdit(producto) },
-      { text: 'Eliminar', style: 'destructive', onPress: () => {
-        Alert.alert('Eliminar', `¿Eliminar "${producto.nombre}"?`, [
-          { text: 'Cancelar' },
-          { text: 'Eliminar', style: 'destructive', onPress: () => producto.id && onDelete(producto.id) },
-        ]);
-      }},
+  // HU-05: menú contextual de tres puntos (editar / eliminar) anclado al botón.
+  const triggerRef = useRef<View>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+
+  const openMenu = () => {
+    triggerRef.current?.measureInWindow((x, y, w, h) => {
+      setMenuPos({ top: y + h + 4, right: SCREEN_WIDTH - (x + w) });
+    });
+  };
+  const closeMenu = () => setMenuPos(null);
+
+  const handleEdit = () => {
+    closeMenu();
+    onEdit(producto);
+  };
+
+  const handleDelete = () => {
+    closeMenu();
+    Alert.alert('Eliminar', `¿Eliminar "${producto.nombre}"?`, [
       { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: () => producto.id && onDelete(producto.id),
+      },
     ]);
   };
 
@@ -66,7 +95,6 @@ export default function ProductoItem({ producto, onEdit, onDelete, onPress }: Pr
     <TouchableOpacity
       style={styles.card}
       onPress={() => onPress?.(producto)}
-      onLongPress={handleLongPress}
       activeOpacity={0.75}
     >
       <View style={[styles.iconBox, { backgroundColor: bg }]}>
@@ -87,100 +115,143 @@ export default function ProductoItem({ producto, onEdit, onDelete, onPress }: Pr
         </View>
       </View>
 
-      <View style={styles.actions}>
-        <TouchableOpacity onPress={() => onEdit(producto)} hitSlop={8} style={styles.actionBtn}>
-          <Text style={styles.editText}>Editar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => producto.id && onDelete(producto.id)}
-          hitSlop={8}
-          style={styles.actionBtn}
-        >
-          <Text style={styles.deleteText}>Eliminar</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Botón de tres puntos */}
+      <TouchableOpacity
+        ref={triggerRef}
+        onPress={openMenu}
+        hitSlop={10}
+        style={styles.menuTrigger}
+        activeOpacity={0.7}
+      >
+        <IconSymbol name="ellipsis.vertical" size={20} color={colors.textSecondary} />
+      </TouchableOpacity>
+
+      {/* Menú desplegable */}
+      <Modal
+        visible={menuPos != null}
+        transparent
+        animationType="fade"
+        onRequestClose={closeMenu}
+        statusBarTranslucent
+      >
+        <Pressable style={styles.menuOverlay} onPress={closeMenu} />
+        {menuPos && (
+          <View style={[styles.menu, { top: menuPos.top, right: menuPos.right }]}>
+            <TouchableOpacity style={styles.menuOption} onPress={handleEdit} activeOpacity={0.7}>
+              <Text style={styles.menuOptionText}>Editar</Text>
+            </TouchableOpacity>
+            <View style={styles.menuSeparator} />
+            <TouchableOpacity style={styles.menuOption} onPress={handleDelete} activeOpacity={0.7}>
+              <Text style={[styles.menuOptionText, styles.menuOptionDanger]}>Eliminar</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </Modal>
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: MidasColors.cardBackground,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-  },
-  iconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  info: {
-    flex: 1,
-  },
-  name: {
-    color: MidasColors.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 3,
-  },
-  date: {
-    color: MidasColors.textSecondary,
-    fontSize: 11,
-  },
-  right: {
-    alignItems: 'flex-end',
-    marginLeft: 8,
-  },
-  amount: {
-    color: MidasColors.textPrimary,
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  badgeAsset: {
-    backgroundColor: '#4CAF5022',
-  },
-  badgeDebt: {
-    backgroundColor: '#E5737322',
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  badgeAssetText: {
-    color: '#4CAF50',
-  },
-  badgeDebtText: {
-    color: '#E57373',
-  },
-  actions: {
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    gap: 4,
-    marginLeft: 8,
-  },
-  actionBtn: {
-    paddingHorizontal: 4,
-  },
-  editText: {
-    color: MidasColors.textSecondary,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  deleteText: {
-    color: '#E74C3C',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-});
+const makeStyles = (c: MidasPalette) =>
+  StyleSheet.create({
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.cardBackground,
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 10,
+    },
+    iconBox: {
+      width: 42,
+      height: 42,
+      borderRadius: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    info: {
+      flex: 1,
+    },
+    name: {
+      color: c.textPrimary,
+      fontSize: 14,
+      fontWeight: '600',
+      marginBottom: 3,
+    },
+    date: {
+      color: c.textSecondary,
+      fontSize: 11,
+    },
+    right: {
+      alignItems: 'flex-end',
+      marginLeft: 8,
+    },
+    amount: {
+      color: c.textPrimary,
+      fontSize: 14,
+      fontWeight: '700',
+      marginBottom: 4,
+    },
+    badge: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 6,
+    },
+    badgeAsset: {
+      backgroundColor: '#4CAF5022',
+    },
+    badgeDebt: {
+      backgroundColor: '#E5737322',
+    },
+    badgeText: {
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    badgeAssetText: {
+      color: '#4CAF50',
+    },
+    badgeDebtText: {
+      color: '#E57373',
+    },
+    menuTrigger: {
+      marginLeft: 6,
+      width: 28,
+      height: 36,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    menuOverlay: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    menu: {
+      position: 'absolute',
+      minWidth: 150,
+      backgroundColor: c.cardBackground,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      paddingVertical: 4,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.4,
+      shadowRadius: 12,
+      elevation: 12,
+    },
+    menuOption: {
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    menuOptionText: {
+      color: c.textPrimary,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    menuOptionDanger: {
+      color: c.danger,
+    },
+    menuSeparator: {
+      height: 1,
+      backgroundColor: c.border,
+      marginHorizontal: 8,
+    },
+  });

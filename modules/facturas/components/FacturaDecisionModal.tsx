@@ -1,7 +1,8 @@
 import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { MidasColors } from '@/constants/theme';
+import { type MidasPalette } from '@/constants/theme';
+import { useThemedStyles } from '@/modules/shared/theme/ThemeContext';
 
 interface Props {
   visible: boolean;
@@ -11,6 +12,8 @@ interface Props {
 }
 
 export function FacturaDecisionModal({ visible, onSingle, onMultiple, onClose }: Props) {
+  const styles = useThemedStyles(makeStyles);
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose} />
@@ -37,48 +40,49 @@ export function FacturaDecisionModal({ visible, onSingle, onMultiple, onClose }:
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  card: {
-    backgroundColor: MidasColors.cardBackground,
-    borderRadius: 20,
-    padding: 24,
-    width: '100%',
-    gap: 14,
-  },
-  title: {
-    color: MidasColors.textPrimary,
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  button: {
-    backgroundColor: MidasColors.gold,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  buttonOutline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: MidasColors.gold,
-  },
-  buttonLabel: {
-    color: '#0F0F0F',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  buttonLabelOutline: {
-    color: MidasColors.gold,
-  },
-});
+const makeStyles = (c: MidasPalette) =>
+  StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: c.overlay,
+    },
+    center: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 32,
+    },
+    card: {
+      backgroundColor: c.cardBackground,
+      borderRadius: 20,
+      padding: 24,
+      width: '100%',
+      gap: 14,
+    },
+    title: {
+      color: c.textPrimary,
+      fontSize: 18,
+      fontWeight: '700',
+      textAlign: 'center',
+      marginBottom: 6,
+    },
+    button: {
+      backgroundColor: c.gold,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    buttonOutline: {
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      borderColor: c.gold,
+    },
+    buttonLabel: {
+      color: c.onGold,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    buttonLabelOutline: {
+      color: c.gold,
+    },
+  });

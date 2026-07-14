@@ -11,7 +11,8 @@ import {
   View,
 } from 'react-native';
 
-import { MidasColors } from '@/constants/theme';
+import { type MidasPalette } from '@/constants/theme';
+import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
 import {
   type AhorroProducto,
   editarMontoAhorro,
@@ -46,6 +47,8 @@ interface Props {
 }
 
 export function ProductoAhorrosModal({ visible, producto, onClose }: Props) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [ahorros, setAhorros] = useState<AhorroProducto[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -123,7 +126,7 @@ export function ProductoAhorrosModal({ visible, producto, onClose }: Props) {
             <View style={styles.statDivider} />
             <View style={styles.stat}>
               <Text style={styles.statLabel}>Aportado por ahorros</Text>
-              <Text style={[styles.statValue, { color: MidasColors.gold }]}>
+              <Text style={[styles.statValue, { color: colors.gold }]}>
                 {formatCurrency(totalAhorrado)}
               </Text>
             </View>
@@ -201,157 +204,158 @@ export function ProductoAhorrosModal({ visible, producto, onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  sheetWrapper: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: MidasColors.cardBackground,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 32,
-    maxHeight: '85%',
-    gap: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  title: {
-    color: MidasColors.textPrimary,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  subtitle: {
-    color: MidasColors.textSecondary,
-    fontSize: 13,
-    marginTop: 2,
-  },
-  closeIcon: {
-    color: MidasColors.textSecondary,
-    fontSize: 28,
-    lineHeight: 28,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2A2A2A',
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  stat: {
-    flex: 1,
-  },
-  statDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: '#3A3A3A',
-    marginHorizontal: 14,
-  },
-  statLabel: {
-    color: MidasColors.textSecondary,
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 4,
-  },
-  statValue: {
-    color: MidasColors.textPrimary,
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  empty: {
-    color: MidasColors.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
-    paddingVertical: 12,
-  },
-  list: {
-    flexGrow: 0,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2A2A2A',
-    gap: 12,
-  },
-  rowInfo: {
-    flex: 1,
-  },
-  rowTitle: {
-    color: MidasColors.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  rowDate: {
-    color: MidasColors.textSecondary,
-    fontSize: 12,
-  },
-  rowRight: {
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  rowAmount: {
-    color: MidasColors.gold,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  actionDivider: {
-    width: 1,
-    height: 12,
-    backgroundColor: '#3A3A3A',
-  },
-  editText: {
-    color: MidasColors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  deleteText: {
-    color: '#E74C3C',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  editRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  editInput: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    color: MidasColors.textPrimary,
-    fontSize: 14,
-    minWidth: 80,
-    textAlign: 'right',
-    borderWidth: 1,
-    borderColor: MidasColors.gold,
-  },
-  saveText: {
-    color: MidasColors.gold,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  cancelText: {
-    color: MidasColors.textSecondary,
-    fontSize: 16,
-  },
-});
+const makeStyles = (c: MidasPalette) =>
+  StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: c.overlay,
+    },
+    sheetWrapper: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: c.cardBackground,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 24,
+      paddingTop: 20,
+      paddingBottom: 32,
+      maxHeight: '85%',
+      gap: 16,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    title: {
+      color: c.textPrimary,
+      fontSize: 18,
+      fontWeight: '700',
+    },
+    subtitle: {
+      color: c.textSecondary,
+      fontSize: 13,
+      marginTop: 2,
+    },
+    closeIcon: {
+      color: c.textSecondary,
+      fontSize: 28,
+      lineHeight: 28,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.inputBackground,
+      borderRadius: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+    },
+    stat: {
+      flex: 1,
+    },
+    statDivider: {
+      width: 1,
+      height: 32,
+      backgroundColor: c.border,
+      marginHorizontal: 14,
+    },
+    statLabel: {
+      color: c.textSecondary,
+      fontSize: 11,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+      marginBottom: 4,
+    },
+    statValue: {
+      color: c.textPrimary,
+      fontSize: 17,
+      fontWeight: '700',
+    },
+    empty: {
+      color: c.textSecondary,
+      fontSize: 14,
+      lineHeight: 20,
+      paddingVertical: 12,
+    },
+    list: {
+      flexGrow: 0,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+      gap: 12,
+    },
+    rowInfo: {
+      flex: 1,
+    },
+    rowTitle: {
+      color: c.textPrimary,
+      fontSize: 14,
+      fontWeight: '600',
+      marginBottom: 2,
+    },
+    rowDate: {
+      color: c.textSecondary,
+      fontSize: 12,
+    },
+    rowRight: {
+      alignItems: 'flex-end',
+      gap: 4,
+    },
+    rowAmount: {
+      color: c.gold,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    actions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    actionDivider: {
+      width: 1,
+      height: 12,
+      backgroundColor: c.border,
+    },
+    editText: {
+      color: c.textSecondary,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    deleteText: {
+      color: c.danger,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    editRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    editInput: {
+      backgroundColor: c.appBackground,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      color: c.textPrimary,
+      fontSize: 14,
+      minWidth: 80,
+      textAlign: 'right',
+      borderWidth: 1,
+      borderColor: c.gold,
+    },
+    saveText: {
+      color: c.gold,
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    cancelText: {
+      color: c.textSecondary,
+      fontSize: 16,
+    },
+  });

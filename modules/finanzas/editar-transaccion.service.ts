@@ -2,21 +2,21 @@ import { eq, sql } from 'drizzle-orm';
 
 import expo, { db } from '@/db/client';
 import { meta, metaAporte, transaccion } from '@/db/schema';
+import { ajustarMontoRealAhorros } from '@/modules/finanzas/ahorro-categoria';
 import { metaEvents } from '@/modules/metas/metaEvents';
-import type { ExpenseCategory } from '@/modules/shared/finance/categories';
 import { TransaccionRepository } from '@/modules/transacciones/TransaccionRepository';
 import { transactionEvents } from '@/modules/transacciones/transactionEvents';
 
 type EditData = {
   type: 'income' | 'expense' | 'saving';
   amount: number;
-  category: ExpenseCategory | null;
+  category: number | null;
   description: string;
   metaId?: number;
 };
 
 type Opts = {
-  resolveCategoriaId: (cat: ExpenseCategory) => number | null;
+  resolveCategoriaId: (cat: number) => number | null;
   onPresupuestoGasto?: (categoriaId: number, monto: number) => Promise<void> | void;
 };
 
@@ -42,6 +42,15 @@ export function editarTransaccion(id: number, data: EditData, opts: Opts): void 
     }
 
     expo.withTransactionSync(() => {
+      // HU-01: revertir el aporte anterior a la categoría "Ahorros" y aplicar
+      // el nuevo, según el tipo antes/después de la edición.
+      if (old.tipo === 'saving') {
+        ajustarMontoRealAhorros(-old.valor_transaccion);
+      }
+      if (data.type === 'saving') {
+        ajustarMontoRealAhorros(data.amount);
+      }
+
       // 1. Reversar aporte anterior a meta si existía
       if (old.meta_id != null) {
         const aportes = db!

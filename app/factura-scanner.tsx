@@ -10,7 +10,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MidasColors } from '@/constants/theme';
+import { useTranslation } from 'react-i18next';
+
+import { type MidasPalette } from '@/constants/theme';
+import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
 import { FacturaDecisionModal } from '@/modules/facturas/components/FacturaDecisionModal';
 import { FacturaMultipleModal } from '@/modules/facturas/components/FacturaMultipleModal';
 import { FacturaSingleModal } from '@/modules/facturas/components/FacturaSingleModal';
@@ -21,6 +24,9 @@ import { usePresupuestoViewModel } from '@/modules/presupuesto/PresupuestoViewMo
 type FlowState = 'camera' | 'loading' | 'error' | 'decision' | 'single' | 'multiple';
 
 export default function FacturaScannerScreen() {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
@@ -74,11 +80,9 @@ export default function FacturaScannerScreen() {
   if (!permission.granted) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <Text style={styles.permissionText}>
-          Necesitamos acceso a tu cámara para escanear facturas.
-        </Text>
+        <Text style={styles.permissionText}>{t('scanner.permission')}</Text>
         <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
-          <Text style={styles.permissionButtonLabel}>Dar permiso</Text>
+          <Text style={styles.permissionButtonLabel}>{t('scanner.grantPermission')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -111,7 +115,7 @@ export default function FacturaScannerScreen() {
               <View style={[styles.corner, styles.cornerTR]} />
               <View style={[styles.corner, styles.cornerBL]} />
               <View style={[styles.corner, styles.cornerBR]} />
-              <Text style={styles.frameLabel}>Encuadra tu factura aquí</Text>
+              <Text style={styles.frameLabel}>{t('scanner.frameLabel')}</Text>
             </View>
             <View style={styles.dimSide} />
           </View>
@@ -128,15 +132,15 @@ export default function FacturaScannerScreen() {
       {/* Loading */}
       {flowState === 'loading' && (
         <View style={[StyleSheet.absoluteFill, styles.centered, styles.loadingOverlay]}>
-          <ActivityIndicator size="large" color={MidasColors.gold} />
-          <Text style={styles.loadingText}>Analizando factura...</Text>
+          <ActivityIndicator size="large" color={colors.gold} />
+          <Text style={styles.loadingText}>{t('scanner.loading')}</Text>
         </View>
       )}
 
       {/* Error */}
       {flowState === 'error' && (
         <View style={[StyleSheet.absoluteFill, styles.centered, styles.loadingOverlay]}>
-          <Text style={styles.errorTitle}>No pudimos leer la factura</Text>
+          <Text style={styles.errorTitle}>{t('scanner.errorTitle')}</Text>
           <Text style={styles.errorText}>
             {errorMsg || 'Intenta con mejor iluminación o ingresa el gasto manualmente.'}
           </Text>
@@ -146,7 +150,7 @@ export default function FacturaScannerScreen() {
             activeOpacity={0.8}
           >
             <Text style={styles.errorButtonLabel}>
-              {lastBase64 ? 'Reintentar análisis' : 'Reintentar foto'}
+              {lastBase64 ? t('scanner.retryAnalysis') : t('scanner.retryPhoto')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -154,15 +158,15 @@ export default function FacturaScannerScreen() {
             onPress={() => { setLastBase64(null); setFlowState('camera'); }}
             activeOpacity={0.8}
           >
-            <Text style={[styles.errorButtonLabel, { color: MidasColors.gold }]}>
-              Tomar otra foto
+            <Text style={[styles.errorButtonLabel, { color: colors.gold }]}>
+              {t('scanner.takeAnother')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.back()}
             activeOpacity={0.7}
           >
-            <Text style={styles.manualLink}>Ingresar manualmente</Text>
+            <Text style={styles.manualLink}>{t('scanner.manual')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -179,7 +183,7 @@ export default function FacturaScannerScreen() {
           <FacturaSingleModal
             visible={flowState === 'single'}
             factura={factura}
-            categorias={categorias as { ID: number; nombre: string }[]}
+            categorias={(categorias as { ID: number; nombre: string; clave?: string | null }[]).filter(c => c.clave !== 'ahorros')}
             onClose={() => setFlowState('camera')}
             onGuardar={handleGuardar}
             agregarGasto={agregarGasto}
@@ -187,7 +191,7 @@ export default function FacturaScannerScreen() {
           <FacturaMultipleModal
             visible={flowState === 'multiple'}
             factura={factura}
-            categorias={categorias as { ID: number; nombre: string }[]}
+            categorias={(categorias as { ID: number; nombre: string; clave?: string | null }[]).filter(c => c.clave !== 'ahorros')}
             onClose={() => setFlowState('camera')}
             onGuardar={handleGuardar}
             agregarGasto={agregarGasto}
@@ -204,176 +208,177 @@ const FRAME_H = 380;
 const CORNER = 24;
 const BORDER = 3;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButton: {
-    position: 'absolute',
-    left: 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  closeButtonText: {
-    color: '#fff',
-    fontSize: 28,
-    lineHeight: 30,
-  },
-  dimTop: {
-    width: '100%',
-    flex: 1,
-    backgroundColor: DIM,
-  },
-  middleRow: {
-    flexDirection: 'row',
-    height: FRAME_H,
-  },
-  dimSide: {
-    flex: 1,
-    backgroundColor: DIM,
-  },
-  frameBox: {
-    width: FRAME_W,
-    height: FRAME_H,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  frameLabel: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  corner: {
-    position: 'absolute',
-    width: CORNER,
-    height: CORNER,
-    borderColor: MidasColors.gold,
-  },
-  cornerTL: {
-    top: 0,
-    left: 0,
-    borderTopWidth: BORDER,
-    borderLeftWidth: BORDER,
-  },
-  cornerTR: {
-    top: 0,
-    right: 0,
-    borderTopWidth: BORDER,
-    borderRightWidth: BORDER,
-  },
-  cornerBL: {
-    bottom: 0,
-    left: 0,
-    borderBottomWidth: BORDER,
-    borderLeftWidth: BORDER,
-  },
-  cornerBR: {
-    bottom: 0,
-    right: 0,
-    borderBottomWidth: BORDER,
-    borderRightWidth: BORDER,
-  },
-  dimBottom: {
-    width: '100%',
-    flex: 1,
-    backgroundColor: DIM,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  captureButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 4,
-    borderColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  captureButtonInner: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#fff',
-  },
-  loadingOverlay: {
-    backgroundColor: 'rgba(0,0,0,0.82)',
-    gap: 18,
-    paddingHorizontal: 32,
-  },
-  loadingText: {
-    color: MidasColors.textPrimary,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  errorTitle: {
-    color: MidasColors.textPrimary,
-    fontSize: 20,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  errorText: {
-    color: MidasColors.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 8,
-  },
-  manualLink: {
-    color: MidasColors.textSecondary,
-    fontSize: 14,
-    textDecorationLine: 'underline',
-    marginTop: 4,
-  },
-  errorButton: {
-    backgroundColor: MidasColors.gold,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    alignItems: 'center',
-    width: '100%',
-  },
-  errorButtonOutline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: MidasColors.gold,
-  },
-  errorButtonLabel: {
-    color: '#0F0F0F',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  permissionText: {
-    color: MidasColors.textPrimary,
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 32,
-  },
-  permissionButton: {
-    backgroundColor: MidasColors.gold,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-  },
-  permissionButtonLabel: {
-    color: '#0F0F0F',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-});
+const makeStyles = (c: MidasPalette) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: '#000',
+    },
+    centered: {
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    closeButton: {
+      position: 'absolute',
+      left: 20,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 10,
+    },
+    closeButtonText: {
+      color: '#fff',
+      fontSize: 28,
+      lineHeight: 30,
+    },
+    dimTop: {
+      width: '100%',
+      flex: 1,
+      backgroundColor: DIM,
+    },
+    middleRow: {
+      flexDirection: 'row',
+      height: FRAME_H,
+    },
+    dimSide: {
+      flex: 1,
+      backgroundColor: DIM,
+    },
+    frameBox: {
+      width: FRAME_W,
+      height: FRAME_H,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    frameLabel: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: '500',
+      textAlign: 'center',
+      backgroundColor: 'rgba(0,0,0,0.35)',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    corner: {
+      position: 'absolute',
+      width: CORNER,
+      height: CORNER,
+      borderColor: c.gold,
+    },
+    cornerTL: {
+      top: 0,
+      left: 0,
+      borderTopWidth: BORDER,
+      borderLeftWidth: BORDER,
+    },
+    cornerTR: {
+      top: 0,
+      right: 0,
+      borderTopWidth: BORDER,
+      borderRightWidth: BORDER,
+    },
+    cornerBL: {
+      bottom: 0,
+      left: 0,
+      borderBottomWidth: BORDER,
+      borderLeftWidth: BORDER,
+    },
+    cornerBR: {
+      bottom: 0,
+      right: 0,
+      borderBottomWidth: BORDER,
+      borderRightWidth: BORDER,
+    },
+    dimBottom: {
+      width: '100%',
+      flex: 1,
+      backgroundColor: DIM,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    captureButton: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      borderWidth: 4,
+      borderColor: '#fff',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    captureButtonInner: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: '#fff',
+    },
+    loadingOverlay: {
+      backgroundColor: 'rgba(0,0,0,0.82)',
+      gap: 18,
+      paddingHorizontal: 32,
+    },
+    loadingText: {
+      color: '#FFFFFF',
+      fontSize: 18,
+      fontWeight: '600',
+    },
+    errorTitle: {
+      color: '#FFFFFF',
+      fontSize: 20,
+      fontWeight: '700',
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    errorText: {
+      color: '#9BA1A6',
+      fontSize: 14,
+      textAlign: 'center',
+      lineHeight: 22,
+      marginBottom: 8,
+    },
+    manualLink: {
+      color: '#9BA1A6',
+      fontSize: 14,
+      textDecorationLine: 'underline',
+      marginTop: 4,
+    },
+    errorButton: {
+      backgroundColor: c.gold,
+      borderRadius: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 32,
+      alignItems: 'center',
+      width: '100%',
+    },
+    errorButtonOutline: {
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      borderColor: c.gold,
+    },
+    errorButtonLabel: {
+      color: c.onGold,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    permissionText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      textAlign: 'center',
+      marginBottom: 20,
+      paddingHorizontal: 32,
+    },
+    permissionButton: {
+      backgroundColor: c.gold,
+      borderRadius: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 32,
+    },
+    permissionButtonLabel: {
+      color: c.onGold,
+      fontWeight: '700',
+      fontSize: 15,
+    },
+  });

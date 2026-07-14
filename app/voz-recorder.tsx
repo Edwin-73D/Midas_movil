@@ -11,7 +11,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MidasColors } from '@/constants/theme';
+import { useTranslation } from 'react-i18next';
+
+import { type MidasPalette } from '@/constants/theme';
+import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
 import { FacturaDecisionModal } from '@/modules/facturas/components/FacturaDecisionModal';
 import { FacturaMultipleModal } from '@/modules/facturas/components/FacturaMultipleModal';
 import { FacturaSingleModal } from '@/modules/facturas/components/FacturaSingleModal';
@@ -32,6 +35,9 @@ export default function VozRecorderScreen() {
   const shouldCancelRef = useRef(false);
   const rippleAnim = useRef(new Animated.Value(1)).current;
   const { agregarGasto, categorias } = usePresupuestoViewModel();
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const animateRipple = useCallback(
     (metering: number) => {
@@ -150,21 +156,19 @@ export default function VozRecorderScreen() {
       {(flowState === 'idle' || isRecording || isInterpreting) && (
         <View style={styles.center}>
           <Text style={styles.title}>
-            {isRecording ? 'Escuchando...' : isInterpreting ? '' : 'Registrar gasto por voz'}
+            {isRecording ? t('voice.listening') : isInterpreting ? '' : t('voice.title')}
           </Text>
 
           {!isInterpreting && (
             <Text style={styles.subtitle}>
-              {isRecording
-                ? 'Suelta para procesar'
-                : 'Mantén presionado el micrófono y describe tu gasto'}
+              {isRecording ? t('voice.releaseToProcess') : t('voice.holdMic')}
             </Text>
           )}
 
           {isInterpreting ? (
             <View style={styles.interpretingBox}>
-              <ActivityIndicator size="large" color={MidasColors.gold} />
-              <Text style={styles.interpretingText}>Interpretando...</Text>
+              <ActivityIndicator size="large" color={colors.gold} />
+              <Text style={styles.interpretingText}>{t('voice.interpreting')}</Text>
             </View>
           ) : (
             <View style={styles.micWrapper}>
@@ -211,13 +215,13 @@ export default function VozRecorderScreen() {
           {isRecording && (
             <View style={styles.recordingDot}>
               <View style={styles.redDot} />
-              <Text style={styles.recordingText}>Grabando</Text>
+              <Text style={styles.recordingText}>{t('voice.recording')}</Text>
             </View>
           )}
 
           {!isRecording && !isInterpreting && (
             <View style={styles.examples}>
-              <Text style={styles.examplesTitle}>Ejemplos:</Text>
+              <Text style={styles.examplesTitle}>{t('voice.examplesTitle')}</Text>
               <Text style={styles.exampleText}>"Gasté cuarenta y cinco mil en almuerzo"</Text>
               <Text style={styles.exampleText}>"Taxi a la oficina, doce mil, ayer"</Text>
               <Text style={styles.exampleText}>"Pagué cien mil de arriendo hoy"</Text>
@@ -229,7 +233,7 @@ export default function VozRecorderScreen() {
       {/* Error */}
       {flowState === 'error' && (
         <View style={styles.center}>
-          <Text style={styles.errorTitle}>No pudimos procesar el audio</Text>
+          <Text style={styles.errorTitle}>{t('voice.errorTitle')}</Text>
           <Text style={styles.errorMsg}>{errorMsg}</Text>
 
           <TouchableOpacity
@@ -241,7 +245,7 @@ export default function VozRecorderScreen() {
             activeOpacity={0.8}
           >
             <Text style={styles.btnLabel}>
-              {lastUri ? 'Reintentar análisis' : 'Intentar de nuevo'}
+              {lastUri ? t('voice.retryAnalysis') : t('voice.tryAgain')}
             </Text>
           </TouchableOpacity>
 
@@ -250,11 +254,11 @@ export default function VozRecorderScreen() {
             onPress={() => { setLastUri(null); setFlowState('idle'); }}
             activeOpacity={0.8}
           >
-            <Text style={[styles.btnLabel, { color: MidasColors.gold }]}>Grabar de nuevo</Text>
+            <Text style={[styles.btnLabel, { color: colors.gold }]}>{t('voice.recordAgain')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-            <Text style={styles.manualLink}>Ingresar manualmente</Text>
+            <Text style={styles.manualLink}>{t('voice.manual')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -271,7 +275,7 @@ export default function VozRecorderScreen() {
           <FacturaSingleModal
             visible={flowState === 'single'}
             factura={gastos}
-            categorias={categorias as { ID: number; nombre: string }[]}
+            categorias={(categorias as { ID: number; nombre: string; clave?: string | null }[]).filter(c => c.clave !== 'ahorros')}
             onClose={() => setFlowState('idle')}
             onGuardar={handleGuardar}
             agregarGasto={agregarGasto}
@@ -279,7 +283,7 @@ export default function VozRecorderScreen() {
           <FacturaMultipleModal
             visible={flowState === 'multiple'}
             factura={gastos}
-            categorias={categorias as { ID: number; nombre: string }[]}
+            categorias={(categorias as { ID: number; nombre: string; clave?: string | null }[]).filter(c => c.clave !== 'ahorros')}
             onClose={() => setFlowState('idle')}
             onGuardar={handleGuardar}
             agregarGasto={agregarGasto}
@@ -293,164 +297,165 @@ export default function VozRecorderScreen() {
 const MIC_SIZE = 96;
 const RIPPLE_BASE = MIC_SIZE + 24;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: MidasColors.appBackground,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 52,
-    left: 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#2A2A2A',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  closeText: {
-    color: MidasColors.textPrimary,
-    fontSize: 26,
-    lineHeight: 28,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    gap: 20,
-  },
-  title: {
-    color: MidasColors.textPrimary,
-    fontSize: 22,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  subtitle: {
-    color: MidasColors.textSecondary,
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  micWrapper: {
-    width: RIPPLE_BASE * 1.6,
-    height: RIPPLE_BASE * 1.6,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 16,
-  },
-  ripple: {
-    position: 'absolute',
-    width: RIPPLE_BASE,
-    height: RIPPLE_BASE,
-    borderRadius: RIPPLE_BASE / 2,
-  },
-  ripple1: { backgroundColor: `${MidasColors.gold}33` },
-  ripple2: { backgroundColor: `${MidasColors.gold}22` },
-  ripple3: { backgroundColor: `${MidasColors.gold}11` },
-  micButton: {
-    width: MIC_SIZE,
-    height: MIC_SIZE,
-    borderRadius: MIC_SIZE / 2,
-    backgroundColor: '#2A2A2A',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  micButtonActive: {
-    backgroundColor: MidasColors.gold,
-    shadowColor: MidasColors.gold,
-    shadowOpacity: 0.5,
-    elevation: 10,
-  },
-  micIcon: {
-    fontSize: 40,
-  },
-  recordingDot: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  redDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#E74C3C',
-  },
-  recordingText: {
-    color: '#E74C3C',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  interpretingBox: {
-    alignItems: 'center',
-    gap: 16,
-    marginVertical: 24,
-  },
-  interpretingText: {
-    color: MidasColors.textPrimary,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  examples: {
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-  },
-  examplesTitle: {
-    color: MidasColors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  exampleText: {
-    color: '#555',
-    fontSize: 13,
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-  errorTitle: {
-    color: MidasColors.textPrimary,
-    fontSize: 20,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  errorMsg: {
-    color: MidasColors.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  btn: {
-    backgroundColor: MidasColors.gold,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    alignItems: 'center',
-    width: '100%',
-  },
-  btnOutline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: MidasColors.gold,
-  },
-  btnLabel: {
-    color: '#0F0F0F',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  manualLink: {
-    color: MidasColors.textSecondary,
-    fontSize: 14,
-    textDecorationLine: 'underline',
-    marginTop: 4,
-  },
-});
+const makeStyles = (c: MidasPalette) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.appBackground,
+    },
+    closeButton: {
+      position: 'absolute',
+      top: 52,
+      left: 20,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: c.inputBackground,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 10,
+    },
+    closeText: {
+      color: c.textPrimary,
+      fontSize: 26,
+      lineHeight: 28,
+    },
+    center: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 32,
+      gap: 20,
+    },
+    title: {
+      color: c.textPrimary,
+      fontSize: 22,
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    subtitle: {
+      color: c.textSecondary,
+      fontSize: 15,
+      textAlign: 'center',
+      lineHeight: 22,
+    },
+    micWrapper: {
+      width: RIPPLE_BASE * 1.6,
+      height: RIPPLE_BASE * 1.6,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginVertical: 16,
+    },
+    ripple: {
+      position: 'absolute',
+      width: RIPPLE_BASE,
+      height: RIPPLE_BASE,
+      borderRadius: RIPPLE_BASE / 2,
+    },
+    ripple1: { backgroundColor: c.gold + '33' },
+    ripple2: { backgroundColor: c.gold + '22' },
+    ripple3: { backgroundColor: c.gold + '11' },
+    micButton: {
+      width: MIC_SIZE,
+      height: MIC_SIZE,
+      borderRadius: MIC_SIZE / 2,
+      backgroundColor: c.inputBackground,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 6,
+    },
+    micButtonActive: {
+      backgroundColor: c.gold,
+      shadowColor: c.gold,
+      shadowOpacity: 0.5,
+      elevation: 10,
+    },
+    micIcon: {
+      fontSize: 40,
+    },
+    recordingDot: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    redDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: c.danger,
+    },
+    recordingText: {
+      color: c.danger,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    interpretingBox: {
+      alignItems: 'center',
+      gap: 16,
+      marginVertical: 24,
+    },
+    interpretingText: {
+      color: c.textPrimary,
+      fontSize: 18,
+      fontWeight: '600',
+    },
+    examples: {
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 8,
+    },
+    examplesTitle: {
+      color: c.textSecondary,
+      fontSize: 13,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 4,
+    },
+    exampleText: {
+      color: c.textSecondary,
+      fontSize: 13,
+      fontStyle: 'italic',
+      textAlign: 'center',
+    },
+    errorTitle: {
+      color: c.textPrimary,
+      fontSize: 20,
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    errorMsg: {
+      color: c.textSecondary,
+      fontSize: 14,
+      textAlign: 'center',
+      lineHeight: 22,
+    },
+    btn: {
+      backgroundColor: c.gold,
+      borderRadius: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 32,
+      alignItems: 'center',
+      width: '100%',
+    },
+    btnOutline: {
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      borderColor: c.gold,
+    },
+    btnLabel: {
+      color: c.onGold,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    manualLink: {
+      color: c.textSecondary,
+      fontSize: 14,
+      textDecorationLine: 'underline',
+      marginTop: 4,
+    },
+  });

@@ -34,6 +34,7 @@ const MAPPING = {
   'checkmark.circle.fill': 'check-circle',
   'chart.bar.fill': 'bar-chart',
   'ellipsis': 'more-horiz',
+  'ellipsis.vertical': 'more-vert',
   'mic.fill': 'mic',
   'camera.fill': 'photo-camera',
   'plus': 'add',

@@ -1,7 +1,5 @@
-import { MidasColors } from '@/constants/theme';
+import { MidasColorsDark, type MidasPalette } from '@/constants/theme';
 import type { TransaccionRow, TransaccionTipo } from './TransaccionRepository';
-
-const EXPENSE_COLOR = '#E74C3C';
 
 /**
  * Título a mostrar de una transacción.
@@ -23,20 +21,20 @@ export function transactionTitle(
 /** Texto y color del monto según el tipo de transacción (HU-16). */
 export function amountDisplay(
   tipo: TransaccionTipo | null,
-  valor: number
+  valor: number,
+  c: MidasPalette = MidasColorsDark,
 ): { text: string; color: string } {
   const abs = Math.abs(valor).toFixed(2);
   switch (tipo) {
     case 'income':
-      return { text: `+$${abs}`, color: MidasColors.positive };
+      return { text: `+$${abs}`, color: c.positive };
     case 'saving':
-      return { text: `↑ $${abs}`, color: MidasColors.gold };
+      return { text: `↑ $${abs}`, color: c.gold };
     case 'expense':
-      return { text: `-$${abs}`, color: EXPENSE_COLOR };
+      return { text: `-$${abs}`, color: c.danger };
     default:
-      // Filas heredadas sin tipo: se infiere por el signo del valor.
       return valor >= 0
-        ? { text: `+$${abs}`, color: MidasColors.positive }
-        : { text: `-$${abs}`, color: EXPENSE_COLOR };
+        ? { text: `+$${abs}`, color: c.positive }
+        : { text: `-$${abs}`, color: c.danger };
   }
 }

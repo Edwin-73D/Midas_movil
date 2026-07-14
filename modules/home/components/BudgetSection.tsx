@@ -2,29 +2,30 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { router } from 'expo-router';
 
-import { MidasColors } from '@/constants/theme';
-import { PresupuestoRepository } from '@/modules/presupuesto/PresupuestoRepository';
+import { useTranslation } from 'react-i18next';
+
+import { type MidasPalette } from '@/constants/theme';
+import { CLAVE_AHORROS, PresupuestoRepository } from '@/modules/presupuesto/PresupuestoRepository';
 import { presupuestoEvents } from '@/modules/presupuesto/presupuestoEvents';
+import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
 import { transactionEvents } from '@/modules/transacciones/transactionEvents';
 
-const CATEGORY_COLORS: Record<string, string> = {
-  needs:            MidasColors.needsColor,
-  wants:            MidasColors.wantsColor,
-  savings:          MidasColors.savingsColor,
-  'savings & debt': MidasColors.savingsColor,
-};
-
-const FALLBACK_PALETTE = [
-  MidasColors.gold, '#3498DB', '#E74C3C', '#1ABC9C',
-  '#9B59B6', '#F39C12', '#16A085',
-];
-
-function resolveColor(nombre: string, id: number): string {
+function resolveColor(nombre: string, id: number, c: MidasPalette): string {
+  const map: Record<string, string> = {
+    needs:            c.needsColor,
+    wants:            c.wantsColor,
+    savings:          c.savingsColor,
+    'savings & debt': c.savingsColor,
+  };
   const key = nombre.toLowerCase();
-  return CATEGORY_COLORS[key] ?? FALLBACK_PALETTE[id % FALLBACK_PALETTE.length];
+  const FALLBACK = [c.gold, '#3498DB', c.danger, '#1ABC9C', '#9B59B6', '#F39C12', '#16A085'];
+  return map[key] ?? FALLBACK[id % FALLBACK.length];
 }
 
 export function BudgetSection() {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [categorias, setCategorias] = useState<any[]>([]);
 
   const load = useCallback(() => {
@@ -53,16 +54,14 @@ export function BudgetSection() {
   if (categorias.length === 0) {
     return (
       <View>
-        <Text style={styles.sectionTitle}>Presupuesto</Text>
+        <Text style={styles.sectionTitle}>{t('budget.title')}</Text>
         <TouchableOpacity
           style={styles.emptyCard}
           onPress={goToPresupuesto}
           activeOpacity={0.8}
         >
-          <Text style={styles.emptyText}>
-            Aún no tienes un presupuesto configurado
-          </Text>
-          <Text style={styles.emptyAction}>Crear Presupuesto →</Text>
+          <Text style={styles.emptyText}>{t('budget.empty')}</Text>
+          <Text style={styles.emptyAction}>{t('budget.create')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -73,15 +72,15 @@ export function BudgetSection() {
     <TouchableOpacity onPress={goToPresupuesto} activeOpacity={0.95}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <Text style={styles.sectionTitle}>Presupuesto</Text>
-        <Text style={styles.seeDetails}>Ver detalle →</Text>
+        <Text style={styles.sectionTitle}>{t('budget.title')}</Text>
+        <Text style={styles.seeDetails}>{t('budget.viewDetails')}</Text>
       </View>
 
       {/* Indicador de sobrepresupuesto global */}
       {isOver && (
         <View style={styles.overBanner}>
           <Text style={styles.overBannerText}>
-            ⚠ Presupuesto excedido en ${Math.round(Math.abs(disponible)).toLocaleString('es-CO')}
+            {t('budget.overBudget', { amount: Math.round(Math.abs(disponible)).toLocaleString() })}
           </Text>
         </View>
       )}
@@ -92,8 +91,8 @@ export function BudgetSection() {
           const progreso = cat.monto_esperado > 0
             ? Math.min(cat.monto_real / cat.monto_esperado, 1)
             : 0;
-          const catOver  = cat.monto_esperado > 0 && cat.monto_real > cat.monto_esperado;
-          const color    = resolveColor(cat.nombre, cat.ID ?? index);
+          const catOver  = cat.monto_esperado > 0 && cat.monto_real > cat.monto_esperado && cat.clave !== CLAVE_AHORROS;
+          const color    = resolveColor(cat.nombre, cat.ID ?? index, colors);
           const pctLabel = cat.porcentaje > 0
             ? ` (${Math.round(cat.porcentaje * 10) / 10}%)`
             : '';
@@ -108,7 +107,7 @@ export function BudgetSection() {
             >
               <View style={styles.itemRow}>
                 <View style={styles.labelGroup}>
-                  <View style={[styles.dot, { backgroundColor: catOver ? '#E74C3C' : color }]} />
+                  <View style={[styles.dot, { backgroundColor: catOver ? colors.danger : color }]} />
                   <Text style={styles.itemLabel}>{cat.nombre}{pctLabel}</Text>
                 </View>
                 <Text style={[styles.amounts, catOver && styles.amountsOver]}>
@@ -122,7 +121,7 @@ export function BudgetSection() {
                     styles.fill,
                     {
                       width: `${progreso * 100}%` as any,
-                      backgroundColor: catOver ? '#E74C3C' : color,
+                      backgroundColor: catOver ? colors.danger : color,
                     },
                   ]}
                 />
@@ -135,111 +134,112 @@ export function BudgetSection() {
   );
 }
 
-const styles = StyleSheet.create({
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    color: MidasColors.textPrimary,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  seeDetails: {
-    color: MidasColors.gold,
-    fontSize: 13,
-  },
-  // ── Estado vacío ─────────────────────────────────────────────────────────
-  emptyCard: {
-    backgroundColor: MidasColors.cardBackground,
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    gap: 10,
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-    borderStyle: 'dashed',
-  },
-  emptyText: {
-    color: MidasColors.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  emptyAction: {
-    color: MidasColors.gold,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  // ── Banner de exceso ──────────────────────────────────────────────────────
-  overBanner: {
-    backgroundColor: '#E74C3C18',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E74C3C40',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    marginBottom: 10,
-  },
-  overBannerText: {
-    color: '#E74C3C',
-    fontSize: 13,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  // ── Categorías ────────────────────────────────────────────────────────────
-  card: {
-    backgroundColor: MidasColors.cardBackground,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-  },
-  itemWrapper: {
-    paddingVertical: 14,
-  },
-  itemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#2A2A2A',
-  },
-  itemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  labelGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    flexShrink: 0,
-  },
-  itemLabel: {
-    color: MidasColors.textPrimary,
-    fontSize: 14,
-    flex: 1,
-  },
-  amounts: {
-    color: MidasColors.textSecondary,
-    fontSize: 12,
-  },
-  amountsOver: {
-    color: '#E74C3C',
-    fontWeight: '600',
-  },
-  track: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#2A2A2A',
-    overflow: 'hidden',
-  },
-  fill: {
-    height: 6,
-    borderRadius: 3,
-  },
-});
+const makeStyles = (c: MidasPalette) =>
+  StyleSheet.create({
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    sectionTitle: {
+      color: c.textPrimary,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    seeDetails: {
+      color: c.gold,
+      fontSize: 13,
+    },
+    // ── Estado vacío ─────────────────────────────────────────────────────────
+    emptyCard: {
+      backgroundColor: c.cardBackground,
+      borderRadius: 16,
+      padding: 20,
+      alignItems: 'center',
+      gap: 10,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderStyle: 'dashed',
+    },
+    emptyText: {
+      color: c.textSecondary,
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    emptyAction: {
+      color: c.gold,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    // ── Banner de exceso ──────────────────────────────────────────────────────
+    overBanner: {
+      backgroundColor: c.danger + '18',
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: c.danger + '40',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      marginBottom: 10,
+    },
+    overBannerText: {
+      color: c.danger,
+      fontSize: 13,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    // ── Categorías ────────────────────────────────────────────────────────────
+    card: {
+      backgroundColor: c.cardBackground,
+      borderRadius: 16,
+      paddingHorizontal: 16,
+    },
+    itemWrapper: {
+      paddingVertical: 14,
+    },
+    itemBorder: {
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    itemRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    labelGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      flex: 1,
+    },
+    dot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      flexShrink: 0,
+    },
+    itemLabel: {
+      color: c.textPrimary,
+      fontSize: 14,
+      flex: 1,
+    },
+    amounts: {
+      color: c.textSecondary,
+      fontSize: 12,
+    },
+    amountsOver: {
+      color: c.danger,
+      fontWeight: '600',
+    },
+    track: {
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: c.border,
+      overflow: 'hidden',
+    },
+    fill: {
+      height: 6,
+      borderRadius: 3,
+    },
+  });

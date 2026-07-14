@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 
 import expo, { db } from '@/db/client';
 import { meta, metaAporte, productoFinanciero, transaccion } from '@/db/schema';
+import { ajustarMontoRealAhorros } from '@/modules/finanzas/ahorro-categoria';
 import { metaEvents } from '@/modules/metas/metaEvents';
 import { TransaccionRepository } from '@/modules/transacciones/TransaccionRepository';
 import { transactionEvents } from '@/modules/transacciones/transactionEvents';
@@ -52,6 +53,11 @@ export function eliminarTransaccion(id: number, opts: Opts = {}): void {
           })
           .where(eq(productoFinanciero.id, tx.producto_financiero_id))
           .run();
+      }
+
+      // HU-01: revertir el aporte de este ahorro en la categoría "Ahorros".
+      if (tx.tipo === 'saving') {
+        ajustarMontoRealAhorros(-tx.valor_transaccion);
       }
 
       db!.delete(transaccion)

@@ -12,7 +12,8 @@ import {
   View,
 } from 'react-native';
 
-import { MidasColors } from '@/constants/theme';
+import { type MidasPalette } from '@/constants/theme';
+import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
 import type { Meta, MetaFormInput } from '@/modules/metas/domain/meta.model';
 
 /** AAAA-MM-DD → DD/MM/AAAA (para mostrar en el campo) */
@@ -41,6 +42,8 @@ export default function MetaForm({
   onClose: () => void;
   initialData?: Meta;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [nombre, setNombre] = useState(initialData?.nombre || '');
   const [metaTotal, setMetaTotal] = useState(initialData?.metaTotal?.toString() || '');
   const [descripcion, setDescripcion] = useState(initialData?.descripcion || '');
@@ -134,7 +137,7 @@ export default function MetaForm({
               value={nombre}
               onChangeText={setNombre}
               placeholder="Ej. Viaje a Europa"
-              placeholderTextColor={MidasColors.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               returnKeyType="next"
               maxLength={60}
             />
@@ -148,7 +151,7 @@ export default function MetaForm({
                 value={metaTotal}
                 onChangeText={setMetaTotal}
                 placeholder="0"
-                placeholderTextColor={MidasColors.textSecondary}
+                placeholderTextColor={colors.textSecondary}
                 keyboardType="numeric"
                 returnKeyType="next"
               />
@@ -161,7 +164,7 @@ export default function MetaForm({
               value={fecha}
               onChangeText={handleFechaChange}
               placeholder="DD/MM/AAAA"
-              placeholderTextColor={MidasColors.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               keyboardType="number-pad"
               returnKeyType="next"
               maxLength={10}
@@ -174,7 +177,7 @@ export default function MetaForm({
               value={descripcion}
               onChangeText={setDescripcion}
               placeholder="Cuéntanos un poco sobre esta meta..."
-              placeholderTextColor={MidasColors.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               multiline
               numberOfLines={3}
               returnKeyType="done"
@@ -199,137 +202,138 @@ export default function MetaForm({
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  sheetWrapper: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: MidasColors.cardBackground,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 36,
-    maxHeight: '92%',
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#3A3A3A',
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  title: {
-    color: MidasColors.textPrimary,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  closeIcon: {
-    color: MidasColors.textSecondary,
-    fontSize: 28,
-    lineHeight: 28,
-  },
-  accumulatedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: MidasColors.positive + '15',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: MidasColors.positive + '30',
-  },
-  accumulatedLabel: {
-    color: MidasColors.positive,
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  accumulatedValue: {
-    color: MidasColors.positive,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  label: {
-    color: MidasColors.textSecondary,
-    fontSize: 12,
-    fontWeight: '500',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-    marginTop: 16,
-  },
-  optional: {
-    textTransform: 'none',
-    fontSize: 11,
-    fontWeight: '400',
-    color: '#555',
-    letterSpacing: 0,
-  },
-  input: {
-    backgroundColor: '#2A2A2A',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    color: MidasColors.textPrimary,
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  multiline: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-    paddingTop: 13,
-  },
-  amountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2A2A2A',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  currencySymbol: {
-    color: MidasColors.gold,
-    fontSize: 20,
-    fontWeight: '400',
-    marginRight: 6,
-  },
-  amountInput: {
-    flex: 1,
-    color: MidasColors.textPrimary,
-    fontSize: 22,
-    fontWeight: '300',
-    paddingVertical: 13,
-  },
-  submitButton: {
-    backgroundColor: MidasColors.gold,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 28,
-    marginBottom: 4,
-  },
-  submitButtonDisabled: {
-    opacity: 0.4,
-  },
-  submitLabel: {
-    color: '#0F0F0F',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
+const makeStyles = (c: MidasPalette) =>
+  StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: c.overlay,
+    },
+    sheetWrapper: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: c.cardBackground,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 24,
+      paddingTop: 12,
+      paddingBottom: 36,
+      maxHeight: '92%',
+    },
+    handle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: c.border,
+      alignSelf: 'center',
+      marginBottom: 16,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 20,
+    },
+    title: {
+      color: c.textPrimary,
+      fontSize: 18,
+      fontWeight: '600',
+    },
+    closeIcon: {
+      color: c.textSecondary,
+      fontSize: 28,
+      lineHeight: 28,
+    },
+    accumulatedBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: c.positive + '15',
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: c.positive + '30',
+    },
+    accumulatedLabel: {
+      color: c.positive,
+      fontSize: 13,
+      fontWeight: '500',
+    },
+    accumulatedValue: {
+      color: c.positive,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    label: {
+      color: c.textSecondary,
+      fontSize: 12,
+      fontWeight: '500',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 8,
+      marginTop: 16,
+    },
+    optional: {
+      textTransform: 'none',
+      fontSize: 11,
+      fontWeight: '400',
+      color: c.textSecondary,
+      letterSpacing: 0,
+    },
+    input: {
+      backgroundColor: c.inputBackground,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 13,
+      color: c.textPrimary,
+      fontSize: 15,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    multiline: {
+      minHeight: 80,
+      textAlignVertical: 'top',
+      paddingTop: 13,
+    },
+    amountRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.inputBackground,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    currencySymbol: {
+      color: c.gold,
+      fontSize: 20,
+      fontWeight: '400',
+      marginRight: 6,
+    },
+    amountInput: {
+      flex: 1,
+      color: c.textPrimary,
+      fontSize: 22,
+      fontWeight: '300',
+      paddingVertical: 13,
+    },
+    submitButton: {
+      backgroundColor: c.gold,
+      borderRadius: 14,
+      paddingVertical: 16,
+      alignItems: 'center',
+      marginTop: 28,
+      marginBottom: 4,
+    },
+    submitButtonDisabled: {
+      opacity: 0.4,
+    },
+    submitLabel: {
+      color: c.onGold,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+  });

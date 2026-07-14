@@ -12,7 +12,8 @@ import {
   View,
 } from 'react-native';
 
-import { MidasColors } from '@/constants/theme';
+import { type MidasPalette } from '@/constants/theme';
+import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
 import type { Producto, ProductoTipo } from '@/modules/productos/domain/producto.model';
 
 interface Props {
@@ -23,6 +24,8 @@ interface Props {
 }
 
 export default function ProductoForm({ visible, onClose, onSubmit, initialData }: Props) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [nombre, setNombre] = useState(initialData?.nombre ?? '');
   const [entidad, setEntidad] = useState(initialData?.entidadFinanciera ?? '');
   const [tipo, setTipo] = useState<ProductoTipo>(initialData?.tipo ?? 'asset');
@@ -69,12 +72,12 @@ export default function ProductoForm({ visible, onClose, onSubmit, initialData }
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Text style={styles.label}>Nombre</Text>
             <TextInput
               style={styles.input}
               placeholder="Ej. Chase Sapphire"
-              placeholderTextColor={MidasColors.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               value={nombre}
               onChangeText={setNombre}
             />
@@ -83,7 +86,7 @@ export default function ProductoForm({ visible, onClose, onSubmit, initialData }
             <TextInput
               style={styles.input}
               placeholder="Ej. Chase Bank"
-              placeholderTextColor={MidasColors.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               value={entidad}
               onChangeText={setEntidad}
             />
@@ -114,7 +117,7 @@ export default function ProductoForm({ visible, onClose, onSubmit, initialData }
             <TextInput
               style={styles.input}
               placeholder="0.00"
-              placeholderTextColor={MidasColors.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               value={montoNeto}
               onChangeText={setMontoNeto}
               keyboardType="decimal-pad"
@@ -124,7 +127,7 @@ export default function ProductoForm({ visible, onClose, onSubmit, initialData }
             <TextInput
               style={styles.input}
               placeholder="0.00"
-              placeholderTextColor={MidasColors.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               value={montoTotal}
               onChangeText={setMontoTotal}
               keyboardType="decimal-pad"
@@ -134,7 +137,7 @@ export default function ProductoForm({ visible, onClose, onSubmit, initialData }
             <TextInput
               style={styles.input}
               placeholder="0.00"
-              placeholderTextColor={MidasColors.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               value={interes}
               onChangeText={setInteres}
               keyboardType="decimal-pad"
@@ -152,110 +155,113 @@ export default function ProductoForm({ visible, onClose, onSubmit, initialData }
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  sheetWrapper: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  sheet: {
-    backgroundColor: '#1C1C1E',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-    maxHeight: '85%',
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#444',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 4,
-  },
-  sheetTitle: {
-    color: MidasColors.textPrimary,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  closeBtn: {
-    color: MidasColors.textSecondary,
-    fontSize: 18,
-    padding: 4,
-  },
-  label: {
-    color: MidasColors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 6,
-    marginTop: 14,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  input: {
-    backgroundColor: '#2A2A2C',
-    color: MidasColors.textPrimary,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-  },
-  tipoRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  tipoBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: '#2A2A2C',
-    alignItems: 'center',
-  },
-  tipoBtnActive: {
-    backgroundColor: `${MidasColors.gold}33`,
-    borderWidth: 1,
-    borderColor: MidasColors.gold,
-  },
-  tipoBtnDebtActive: {
-    backgroundColor: '#E5737333',
-    borderWidth: 1,
-    borderColor: '#E57373',
-  },
-  tipoBtnText: {
-    color: MidasColors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  tipoBtnTextActive: {
-    color: MidasColors.gold,
-  },
-  tipoBtnDebtTextActive: {
-    color: '#E57373',
-  },
-  submitBtn: {
-    backgroundColor: MidasColors.gold,
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  submitBtnText: {
-    color: '#0F0F0F',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
+const makeStyles = (c: MidasPalette) =>
+  StyleSheet.create({
+    overlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: c.overlay,
+    },
+    sheetWrapper: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: c.cardBackground,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 20,
+      paddingBottom: 32,
+      maxHeight: '85%',
+    },
+    handle: {
+      width: 40,
+      height: 4,
+      backgroundColor: c.border,
+      borderRadius: 2,
+      alignSelf: 'center',
+      marginTop: 12,
+      marginBottom: 8,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 20,
+      marginTop: 4,
+    },
+    sheetTitle: {
+      color: c.textPrimary,
+      fontSize: 18,
+      fontWeight: '700',
+    },
+    closeBtn: {
+      color: c.textSecondary,
+      fontSize: 18,
+      padding: 4,
+    },
+    label: {
+      color: c.textSecondary,
+      fontSize: 12,
+      fontWeight: '600',
+      marginBottom: 6,
+      marginTop: 14,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    input: {
+      backgroundColor: c.inputBackground,
+      color: c.textPrimary,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 15,
+    },
+    tipoRow: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    tipoBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 10,
+      backgroundColor: c.inputBackground,
+      alignItems: 'center',
+    },
+    tipoBtnActive: {
+      backgroundColor: c.gold + '33',
+      borderWidth: 1,
+      borderColor: c.gold,
+    },
+    tipoBtnDebtActive: {
+      backgroundColor: c.danger + '33',
+      borderWidth: 1,
+      borderColor: c.danger,
+    },
+    tipoBtnText: {
+      color: c.textSecondary,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    tipoBtnTextActive: {
+      color: c.gold,
+    },
+    tipoBtnDebtTextActive: {
+      color: c.danger,
+    },
+    submitBtn: {
+      backgroundColor: c.gold,
+      borderRadius: 12,
+      paddingVertical: 15,
+      alignItems: 'center',
+      marginTop: 24,
+    },
+    submitBtnText: {
+      color: c.onGold,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+  });

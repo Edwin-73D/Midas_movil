@@ -9,6 +9,8 @@ export const categoria = sqliteTable('Categoria', {
   porcentaje: real('porcentaje').default(0),
   descripcion: text('descripcion'),
   usuarioId: integer('usuario_id'),
+  // HU-01: clave estable de la categoría fija de ahorros ('ahorros'); null en el resto.
+  clave: text('clave'),
 });
 
 export const meta = sqliteTable('Meta', {
