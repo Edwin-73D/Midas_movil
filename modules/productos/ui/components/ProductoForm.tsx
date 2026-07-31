@@ -14,7 +14,18 @@ import {
 
 import { type MidasPalette } from '@/constants/theme';
 import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
-import type { Producto, ProductoTipo } from '@/modules/productos/domain/producto.model';
+import type {
+  FrecuenciaCapitalizacion,
+  Producto,
+  ProductoTipo,
+} from '@/modules/productos/domain/producto.model';
+
+const FRECUENCIAS: { value: FrecuenciaCapitalizacion; label: string }[] = [
+  { value: 'mensual', label: 'Mensual' },
+  { value: 'trimestral', label: 'Trimestral' },
+  { value: 'semestral', label: 'Semestral' },
+  { value: 'anual', label: 'Anual' },
+];
 
 interface Props {
   visible: boolean;
@@ -30,8 +41,13 @@ export default function ProductoForm({ visible, onClose, onSubmit, initialData }
   const [entidad, setEntidad] = useState(initialData?.entidadFinanciera ?? '');
   const [tipo, setTipo] = useState<ProductoTipo>(initialData?.tipo ?? 'asset');
   const [montoNeto, setMontoNeto] = useState(initialData?.montoNeto?.toString() ?? '');
-  const [montoTotal, setMontoTotal] = useState(initialData?.montoTotal?.toString() ?? '');
   const [interes, setInteres] = useState(initialData?.interes?.toString() ?? '');
+  const [etiqueta, setEtiqueta] = useState<'ahorro' | 'inversion' | null>(initialData?.etiqueta ?? null);
+  const [frecuencia, setFrecuencia] = useState<FrecuenciaCapitalizacion | null>(
+    initialData?.frecuenciaCapitalizacion ?? null
+  );
+
+  const tieneInteres = Number(interes) > 0;
 
   const handleSubmit = () => {
     const trimNombre = nombre.trim();
@@ -41,15 +57,21 @@ export default function ProductoForm({ visible, onClose, onSubmit, initialData }
     const parsedMontoNeto = Number(montoNeto);
     if (Number.isNaN(parsedMontoNeto) || parsedMontoNeto < 0) return;
 
+    const parsedInteres = Number(interes) || 0;
+    // Si hay tasa configurada, se exige frecuencia de capitalización.
+    if (parsedInteres > 0 && !frecuencia) return;
+
     onSubmit({
       id: initialData?.id,
       nombre: trimNombre,
       entidadFinanciera: trimEntidad,
       tipo,
       montoNeto: parsedMontoNeto,
-      montoTotal: Number(montoTotal) || parsedMontoNeto,
-      interes: Number(interes) || 0,
+      montoTotal: parsedMontoNeto,
+      interes: parsedInteres,
       metaId: initialData?.metaId ?? null,
+      etiqueta,
+      frecuenciaCapitalizacion: parsedInteres > 0 ? frecuencia : null,
     });
   };
 
@@ -113,6 +135,37 @@ export default function ProductoForm({ visible, onClose, onSubmit, initialData }
               </TouchableOpacity>
             </View>
 
+            <Text style={styles.label}>Etiqueta (opcional)</Text>
+            <View style={styles.tipoRow}>
+              <TouchableOpacity
+                style={[styles.tipoBtn, etiqueta === null && styles.tipoBtnActive]}
+                onPress={() => setEtiqueta(null)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.tipoBtnText, etiqueta === null && styles.tipoBtnTextActive]}>
+                  Ninguna
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tipoBtn, etiqueta === 'ahorro' && styles.tipoBtnActive]}
+                onPress={() => setEtiqueta('ahorro')}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.tipoBtnText, etiqueta === 'ahorro' && styles.tipoBtnTextActive]}>
+                  Ahorro
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tipoBtn, etiqueta === 'inversion' && styles.tipoBtnActive]}
+                onPress={() => setEtiqueta('inversion')}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.tipoBtnText, etiqueta === 'inversion' && styles.tipoBtnTextActive]}>
+                  Inversión
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             <Text style={styles.label}>Monto Neto</Text>
             <TextInput
               style={styles.input}
@@ -120,16 +173,6 @@ export default function ProductoForm({ visible, onClose, onSubmit, initialData }
               placeholderTextColor={colors.textSecondary}
               value={montoNeto}
               onChangeText={setMontoNeto}
-              keyboardType="decimal-pad"
-            />
-
-            <Text style={styles.label}>Monto Total (opcional)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0.00"
-              placeholderTextColor={colors.textSecondary}
-              value={montoTotal}
-              onChangeText={setMontoTotal}
               keyboardType="decimal-pad"
             />
 
@@ -142,6 +185,28 @@ export default function ProductoForm({ visible, onClose, onSubmit, initialData }
               onChangeText={setInteres}
               keyboardType="decimal-pad"
             />
+
+            {tieneInteres && (
+              <>
+                <Text style={styles.label}>Frecuencia de capitalización</Text>
+                <View style={styles.frecuenciaRow}>
+                  {FRECUENCIAS.map((f) => (
+                    <TouchableOpacity
+                      key={f.value}
+                      style={[styles.frecuenciaBtn, frecuencia === f.value && styles.tipoBtnActive]}
+                      onPress={() => setFrecuencia(f.value)}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[styles.tipoBtnText, frecuencia === f.value && styles.tipoBtnTextActive]}
+                      >
+                        {f.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
 
             <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} activeOpacity={0.85}>
               <Text style={styles.submitBtnText}>Guardar</Text>
@@ -223,6 +288,19 @@ const makeStyles = (c: MidasPalette) =>
     tipoRow: {
       flexDirection: 'row',
       gap: 10,
+    },
+    frecuenciaRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+    },
+    frecuenciaBtn: {
+      flexBasis: '47%',
+      flexGrow: 1,
+      paddingVertical: 12,
+      borderRadius: 10,
+      backgroundColor: c.inputBackground,
+      alignItems: 'center',
     },
     tipoBtn: {
       flex: 1,

@@ -1,6 +1,8 @@
 import sqlite from '@/db/client';
 import { getCurrentUserId } from '@/modules/auth/data/session';
 import { calcPorcentajeActual } from '@/modules/metas/domain/meta.utils';
+import { getFrecuenciaPresupuesto } from '@/modules/presupuesto/data/presupuesto-config';
+import { getRangoPeriodoActual } from '@/modules/presupuesto/periodo';
 import { getProductosSync } from '@/modules/productos/data/producto.service';
 import {
   MESES_CORTO,
@@ -86,10 +88,14 @@ export function getGastosPorCategoria(p: Periodo): GastoCategoria[] {
 }
 
 // ─── HU-R04: Comparativa presupuesto vs real ─────────────────────────────────
+// HU: períodos de presupuesto — esta comparativa siempre refleja el período
+// vigente (mensual/quincenal, según la configuración del presupuesto), igual
+// que Presupuesto/Home, sin importar el mes elegido en el selector general de
+// Reportes (ese selector sigue aplicando a las demás secciones del reporte).
 
-export function getComparativaPresupuesto(p: Periodo): ComparativaPresupuesto {
+export function getComparativaPresupuesto(): ComparativaPresupuesto {
   const uid = getCurrentUserId();
-  const f = fechaClause(p, 't.fecha_hora');
+  const { inicio, fin } = getRangoPeriodoActual(getFrecuenciaPresupuesto());
   try {
     const rows = sqlite.getAllSync(
       `SELECT
@@ -98,12 +104,13 @@ export function getComparativaPresupuesto(p: Periodo): ComparativaPresupuesto {
          COALESCE((
            SELECT SUM(t.valor_transaccion) FROM transaccion t
            WHERE t.categoria_id = c.ID AND t.tipo = 'expense'
-             AND (t.usuario_id = ? OR t.usuario_id IS NULL)${f.clause}
+             AND (t.usuario_id = ? OR t.usuario_id IS NULL)
+             AND strftime('%Y-%m-%d', t.fecha_hora) BETWEEN ? AND ?
          ), 0) AS gastado
        FROM Categoria c
        WHERE (c.usuario_id = ? OR c.usuario_id IS NULL) AND c.monto_esperado > 0
        ORDER BY c.nombre`,
-      [uid, ...f.params, uid]
+      [uid, inicio, fin, uid]
     ) as { nombre: string; presupuestado: number; gastado: number }[];
 
     return {
@@ -252,7 +259,7 @@ export function getReporteCompleto(p: Periodo): ReporteCompleto {
   return {
     resumen: getResumenFinanciero(p),
     gastosCategoria: getGastosPorCategoria(p),
-    comparativa: getComparativaPresupuesto(p),
+    comparativa: getComparativaPresupuesto(),
     tendencia: getTendencia6Meses(),
     aportesMetas: getAportesMetas(p),
     productos: getProductosReporte(p),

@@ -1,8 +1,50 @@
 import sqlite from '@/db/client';
 import { getCurrentUserId } from '@/modules/auth/data/session';
+import { getFrecuenciaPresupuesto } from '@/modules/presupuesto/data/presupuesto-config';
+import { getRangoPeriodoActual } from '@/modules/presupuesto/periodo';
 
 /** HU-01: clave estable de la categoría fija de ahorros. */
 export const CLAVE_AHORROS = 'ahorros';
+
+/**
+ * Columnas explícitas (no `SELECT *`) porque `monto_real` se sobreescribe con
+ * un cálculo dinámico por fila — evita el nombre de columna duplicado que
+ * resultaría de `SELECT c.*, ... AS monto_real`.
+ *
+ * HU: sin reset destructivo. `monto_real` ya no se lee del acumulado
+ * histórico de la tabla: se recalcula en cada consulta sumando las
+ * transacciones del período vigente (mensual/quincenal, configurable). Para
+ * "Ahorros" se suman las `saving` (no llevan categoria_id — ver
+ * registrar-transaccion.service.ts); para el resto, las `expense` vinculadas
+ * a la categoría. Los acumuladores (`actualizarMontoReal`,
+ * `ajustarMontoRealAhorros`, `ajustarMontoRealIntereses`) se dejan intactos
+ * y siguen escribiendo, pero ya no se leen para mostrar datos.
+ */
+function selectCategoriasConGastoPeriodo(whereUsuario: string): { sql: string; buildParams: (uid: number | null) => any[] } {
+  const sqlText = `
+    SELECT c.ID, c.nombre, c.monto_esperado, c.porcentaje, c.descripcion, c.usuario_id, c.clave,
+      CASE WHEN c.clave = ? THEN COALESCE((
+        SELECT SUM(t.valor_transaccion) FROM transaccion t
+        WHERE t.tipo = 'saving'
+          AND (t.usuario_id = ? OR t.usuario_id IS NULL)
+          AND strftime('%Y-%m-%d', t.fecha_hora) BETWEEN ? AND ?
+      ), 0) ELSE COALESCE((
+        SELECT SUM(t.valor_transaccion) FROM transaccion t
+        WHERE t.categoria_id = c.ID AND t.tipo = 'expense'
+          AND (t.usuario_id = ? OR t.usuario_id IS NULL)
+          AND strftime('%Y-%m-%d', t.fecha_hora) BETWEEN ? AND ?
+      ), 0) END AS monto_real
+    FROM Categoria c
+    ${whereUsuario}
+  `;
+  return {
+    sql: sqlText,
+    buildParams: (uid) => {
+      const { inicio, fin } = getRangoPeriodoActual(getFrecuenciaPresupuesto());
+      return [CLAVE_AHORROS, uid, inicio, fin, uid, inicio, fin];
+    },
+  };
+}
 
 export const PresupuestoRepository = {
   // HU-01: garantiza que el usuario activo tenga su categoría fija "Ahorros".
@@ -65,13 +107,15 @@ export const PresupuestoRepository = {
       const uid = getCurrentUserId();
       // HU-01: la categoría fija de ahorros siempre debe existir y aparecer.
       PresupuestoRepository.ensureCategoriaAhorros();
+
       if (uid != null) {
-        return sqlite.getAllSync(
-          "SELECT * FROM Categoria WHERE usuario_id = ? OR usuario_id IS NULL",
-          [uid]
+        const { sql, buildParams } = selectCategoriasConGastoPeriodo(
+          "WHERE c.usuario_id = ? OR c.usuario_id IS NULL"
         );
+        return sqlite.getAllSync(sql, [...buildParams(uid), uid]);
       }
-      return sqlite.getAllSync("SELECT * FROM Categoria");
+      const { sql, buildParams } = selectCategoriasConGastoPeriodo("");
+      return sqlite.getAllSync(sql, buildParams(null));
     } catch (error) {
       console.log("Error obteniendo categorias:", error);
       return [];

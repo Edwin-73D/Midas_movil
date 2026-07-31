@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -16,6 +16,9 @@ import {
 import { type MidasPalette } from '@/constants/theme';
 import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
 import { registrarTransaccion } from '@/modules/finanzas/registrar-transaccion.service';
+import { CLAVE_LIBRE, getAdvertenciaCuenta, type AdvertenciaCuenta } from '@/modules/productos/data/producto.service';
+import { AdvertenciaCuentaModal } from '@/modules/productos/ui/components/AdvertenciaCuentaModal';
+import type { ProductoPickerItem } from '@/modules/home/components/AddTransactionModal';
 
 import type { FacturaAnalizada } from '../domain/factura.types';
 
@@ -32,6 +35,7 @@ interface Props {
   visible: boolean;
   factura: FacturaAnalizada;
   categorias: CategoriaRow[];
+  productos: ProductoPickerItem[];
   onClose: () => void;
   onGuardar: () => void;
   agregarGasto: (categoriaId: number, monto: number) => void;
@@ -41,6 +45,7 @@ export function FacturaMultipleModal({
   visible,
   factura,
   categorias,
+  productos,
   onClose,
   onGuardar,
   agregarGasto,
@@ -55,6 +60,15 @@ export function FacturaMultipleModal({
       categoria: null,
     }))
   );
+  const [productoId, setProductoId] = useState<number | null>(null);
+  const [advertencia, setAdvertencia] = useState<AdvertenciaCuenta>(null);
+
+  useEffect(() => {
+    if (visible) {
+      setProductoId(productos.find((p) => p.clave === CLAVE_LIBRE)?.id ?? null);
+      setAdvertencia(null);
+    }
+  }, [visible, productos]);
 
   const selectedCount = items.filter((it) => it.checked).length;
   const canGuardar = items.some((it) => it.checked && parseFloat(it.monto) > 0 && it.categoria !== null);
@@ -63,8 +77,17 @@ export function FacturaMultipleModal({
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, [key]: value } : it)));
   }
 
-  async function handleGuardar() {
+  async function handleGuardar(opts?: { skipAdvertencia?: boolean }) {
     if (!canGuardar) return;
+
+    if (productoId != null && !opts?.skipAdvertencia) {
+      const adv = getAdvertenciaCuenta(productoId);
+      if (adv) {
+        setAdvertencia(adv);
+        return;
+      }
+    }
+
     const toSave = items.filter((it) => it.checked && parseFloat(it.monto) > 0 && it.categoria !== null);
     let errored = false;
     for (const item of toSave) {
@@ -76,6 +99,7 @@ export function FacturaMultipleModal({
             category: item.categoria,
             description: item.nombre,
             metaId: undefined,
+            productoFinancieroId: productoId ?? undefined,
           },
           {
             resolveCategoriaId: () => item.categoria,
@@ -84,7 +108,16 @@ export function FacturaMultipleModal({
         );
       } catch (e) {
         errored = true;
-        Alert.alert('Error', `No se pudo guardar "${item.nombre}"`);
+        if (e instanceof Error && e.message === 'LIBRE_SIN_FONDOS') {
+          Alert.alert(
+            'Sin fondos en Libre',
+            'No tienes dinero registrado en tu cuenta Libre para este gasto. Registra un ingreso primero o elige otra cuenta.'
+          );
+        } else if (e instanceof Error && e.message === 'INSUFFICIENT_FUNDS') {
+          Alert.alert('Saldo insuficiente', 'Este gasto supera el saldo disponible de la cuenta seleccionada.');
+        } else {
+          Alert.alert('Error', `No se pudo guardar "${item.nombre}"`);
+        }
         break;
       }
     }
@@ -106,6 +139,33 @@ export function FacturaMultipleModal({
               <Text style={styles.closeIcon}>×</Text>
             </TouchableOpacity>
           </View>
+
+          <Text style={styles.accountLabel}>Cuenta para todos los ítems</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.accountRow}
+            keyboardShouldPersistTaps="handled"
+          >
+            {productos.map((p) => {
+              const selected = productoId === p.id;
+              return (
+                <TouchableOpacity
+                  key={p.id}
+                  style={[
+                    styles.accountChip,
+                    selected && { backgroundColor: colors.gold, borderColor: colors.gold },
+                  ]}
+                  onPress={() => setProductoId(p.id)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.catLabel, selected && styles.catLabelActive]}>
+                    {p.nombre}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
 
           <ScrollView showsVerticalScrollIndicator={false} style={styles.list}>
             {items.map((item, index) => (
@@ -173,7 +233,7 @@ export function FacturaMultipleModal({
             </Text>
             <TouchableOpacity
               style={[styles.submitButton, !canGuardar && styles.submitButtonDisabled]}
-              onPress={handleGuardar}
+              onPress={() => handleGuardar()}
               activeOpacity={0.85}
               disabled={!canGuardar}
             >
@@ -182,6 +242,17 @@ export function FacturaMultipleModal({
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <AdvertenciaCuentaModal
+        visible={advertencia != null}
+        etiqueta={advertencia?.etiqueta ?? null}
+        metas={advertencia?.metas ?? []}
+        onCancel={() => setAdvertencia(null)}
+        onConfirm={() => {
+          setAdvertencia(null);
+          handleGuardar({ skipAdvertencia: true });
+        }}
+      />
     </Modal>
   );
 }
@@ -223,6 +294,27 @@ const makeStyles = (c: MidasPalette) =>
     },
     list: {
       flex: 1,
+    },
+    accountLabel: {
+      color: c.textSecondary,
+      fontSize: 12,
+      fontWeight: '500',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 8,
+    },
+    accountRow: {
+      gap: 8,
+      paddingBottom: 12,
+    },
+    accountChip: {
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 8,
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: 'transparent',
     },
     itemCard: {
       backgroundColor: c.inputBackground,

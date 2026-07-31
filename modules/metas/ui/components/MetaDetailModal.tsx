@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTranslation } from 'react-i18next';
 
@@ -33,6 +34,7 @@ export function MetaDetailModal({ visible, meta, onClose }: Props) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const insets = useSafeAreaInsets();
   const [distribucion, setDistribucion] = useState<DistribucionProducto[]>([]);
 
   useEffect(() => {
@@ -54,7 +56,7 @@ export function MetaDetailModal({ visible, meta, onClose }: Props) {
       <Pressable style={styles.overlay} onPress={onClose} />
 
       <View style={styles.sheetWrapper} pointerEvents="box-none">
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: 36 + insets.bottom }]}>
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title} numberOfLines={1}>{meta.nombre}</Text>
@@ -136,7 +138,6 @@ const makeStyles = (c: MidasPalette) =>
       borderTopRightRadius: 24,
       paddingHorizontal: 24,
       paddingTop: 20,
-      paddingBottom: 36,
       maxHeight: '85%',
     },
     header: {

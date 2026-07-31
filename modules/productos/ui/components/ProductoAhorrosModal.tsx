@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -20,6 +20,7 @@ import {
   getAhorrosPorProducto,
 } from '@/modules/finanzas/ahorro.service';
 import type { Producto } from '@/modules/productos/domain/producto.model';
+import { getProyecciones } from '@/modules/productos/domain/proyeccion';
 import { transactionEvents } from '@/modules/transacciones/transactionEvents';
 
 function formatCurrency(value: number): string {
@@ -64,6 +65,11 @@ export function ProductoAhorrosModal({ visible, producto, onClose }: Props) {
   }, [visible, productId]);
 
   const totalAhorrado = ahorros.reduce((acc, a) => acc + a.monto, 0);
+
+  const proyecciones = useMemo(() => {
+    if (!producto || (producto.interes ?? 0) <= 0 || !producto.frecuenciaCapitalizacion) return [];
+    return getProyecciones(producto.montoNeto ?? 0, producto.interes, producto.frecuenciaCapitalizacion);
+  }, [producto]);
 
   function handleDelete(a: AhorroProducto) {
     Alert.alert(
@@ -130,18 +136,28 @@ export function ProductoAhorrosModal({ visible, producto, onClose }: Props) {
                 {formatCurrency(totalAhorrado)}
               </Text>
             </View>
-            {(producto?.interes ?? 0) > 0 && (
-              <>
-                <View style={styles.statDivider} />
-                <View style={styles.stat}>
-                  <Text style={styles.statLabel}>Proyección (1 mes)</Text>
-                  <Text style={[styles.statValue, { color: '#4CAF50' }]}>
-                    {formatCurrency((producto!.montoNeto ?? 0) * (1 + (producto!.interes!) / 100 / 12))}
-                  </Text>
-                </View>
-              </>
-            )}
           </View>
+
+          {proyecciones.length > 0 && (
+            <View style={styles.projectionBlock}>
+              <Text style={styles.projectionDisclaimer}>
+                Proyección estimada — no garantizada
+              </Text>
+              <View style={styles.statsRow}>
+                {proyecciones.map((p, i) => (
+                  <Fragment key={p.meses}>
+                    {i > 0 && <View style={styles.statDivider} />}
+                    <View style={styles.stat}>
+                      <Text style={styles.statLabel}>Proyección {p.meses}m</Text>
+                      <Text style={[styles.statValue, { color: '#4CAF50' }]}>
+                        {formatCurrency(p.valor)}
+                      </Text>
+                    </View>
+                  </Fragment>
+                ))}
+              </View>
+            </View>
+          )}
 
           {ahorros.length === 0 ? (
             <Text style={styles.empty}>
@@ -251,6 +267,14 @@ const makeStyles = (c: MidasPalette) =>
       borderRadius: 12,
       paddingVertical: 14,
       paddingHorizontal: 16,
+    },
+    projectionBlock: {
+      gap: 8,
+    },
+    projectionDisclaimer: {
+      color: c.textSecondary,
+      fontSize: 11,
+      fontStyle: 'italic',
     },
     stat: {
       flex: 1,

@@ -1,6 +1,6 @@
 import { Audio } from 'expo-av';
 import { router } from 'expo-router';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -21,6 +21,8 @@ import { FacturaSingleModal } from '@/modules/facturas/components/FacturaSingleM
 import type { FacturaAnalizada } from '@/modules/facturas/domain/factura.types';
 import { usePresupuestoViewModel } from '@/modules/presupuesto/PresupuestoViewModel';
 import { interpretarVoz } from '@/modules/voz/services/interpretar-voz.service';
+import type { ProductoPickerItem } from '@/modules/home/components/AddTransactionModal';
+import { getProductosSync } from '@/modules/productos/data/producto.service';
 
 type FlowState = 'idle' | 'recording' | 'interpreting' | 'error' | 'decision' | 'single' | 'multiple';
 
@@ -30,6 +32,7 @@ export default function VozRecorderScreen() {
   const [errorMsg, setErrorMsg] = useState('');
   const [gastos, setGastos] = useState<FacturaAnalizada | null>(null);
   const [lastUri, setLastUri] = useState<string | null>(null);
+  const [productosPicker, setProductosPicker] = useState<ProductoPickerItem[]>([]);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const isStartingRef = useRef(false);
   const shouldCancelRef = useRef(false);
@@ -38,6 +41,14 @@ export default function VozRecorderScreen() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
+
+  useEffect(() => {
+    setProductosPicker(
+      getProductosSync()
+        .filter((p) => p.id != null)
+        .map((p) => ({ id: p.id!, nombre: p.nombre ?? 'Producto', montoNeto: p.montoNeto ?? 0, tipo: p.tipo, clave: p.clave ?? null }))
+    );
+  }, []);
 
   const animateRipple = useCallback(
     (metering: number) => {
@@ -276,6 +287,7 @@ export default function VozRecorderScreen() {
             visible={flowState === 'single'}
             factura={gastos}
             categorias={(categorias as { ID: number; nombre: string; clave?: string | null }[]).filter(c => c.clave !== 'ahorros')}
+            productos={productosPicker}
             onClose={() => setFlowState('idle')}
             onGuardar={handleGuardar}
             agregarGasto={agregarGasto}
@@ -284,6 +296,7 @@ export default function VozRecorderScreen() {
             visible={flowState === 'multiple'}
             factura={gastos}
             categorias={(categorias as { ID: number; nombre: string; clave?: string | null }[]).filter(c => c.clave !== 'ahorros')}
+            productos={productosPicker}
             onClose={() => setFlowState('idle')}
             onGuardar={handleGuardar}
             agregarGasto={agregarGasto}

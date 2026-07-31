@@ -1,4 +1,5 @@
 import sqlite from '@/db/client';
+import { ensureProductoLibre } from '@/modules/productos/data/producto.service';
 
 import { hashPassword, verifyPassword } from './password';
 
@@ -52,8 +53,11 @@ export const AuthRepository = {
         `INSERT INTO usuario (username, password_hash, email) VALUES (?, ?, ?)`,
         [username, hashPassword(input.password), email]
       );
+      const nuevoId = Number(result.lastInsertRowId);
+      // HU: cada usuario nace con su cuenta fija "Libre" para dinero no trackeado.
+      ensureProductoLibre(nuevoId);
       return {
-        usuario: { id: Number(result.lastInsertRowId), username, email },
+        usuario: { id: nuevoId, username, email },
       };
     } catch (e) {
       console.log('Error crearUsuario:', e);

@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 
 import type { Producto } from '@/modules/productos/domain/producto.model';
 import {
+  CLAVE_LIBRE,
   getAllProductos,
   getResumenProductos,
   insertProducto,
@@ -35,10 +36,19 @@ export const useProductos = () => {
   };
 
   const editProducto = (p: Producto) => {
+    if (p.clave === CLAVE_LIBRE) {
+      Alert.alert('Cuenta protegida', 'La cuenta "Libre" no se puede editar.');
+      return;
+    }
     try { updateProducto(p); loadData(); } catch (e) { console.error('editProducto:', e); }
   };
 
   const removeProducto = (id: number) => {
+    const producto = productos.find((p) => p.id === id);
+    if (producto?.clave === CLAVE_LIBRE) {
+      Alert.alert('Cuenta protegida', 'La cuenta "Libre" no se puede eliminar.');
+      return;
+    }
     Alert.alert(
       'Eliminar producto',
       '¿Eliminar este producto? Los ahorros asociados quedarán desvinculados pero no se eliminarán.',

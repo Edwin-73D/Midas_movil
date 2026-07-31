@@ -45,11 +45,21 @@ export function eliminarTransaccion(id: number, opts: Opts = {}): void {
           .run();
       }
 
-      // Revertir saldo del producto financiero si era un ahorro vinculado
-      if (tx.tipo === 'saving' && tx.producto_financiero_id != null) {
+      // Revertir saldo del producto financiero si era un ahorro o ingreso vinculado
+      if ((tx.tipo === 'saving' || tx.tipo === 'income') && tx.producto_financiero_id != null) {
         db!.update(productoFinanciero)
           .set({
             montoNeto: sql`COALESCE(${productoFinanciero.montoNeto}, 0) - ${tx.valor_transaccion}`,
+          })
+          .where(eq(productoFinanciero.id, tx.producto_financiero_id))
+          .run();
+      }
+
+      // Un gasto vinculado libera de vuelta el saldo del producto al borrarse.
+      if (tx.tipo === 'expense' && tx.producto_financiero_id != null) {
+        db!.update(productoFinanciero)
+          .set({
+            montoNeto: sql`COALESCE(${productoFinanciero.montoNeto}, 0) + ${tx.valor_transaccion}`,
           })
           .where(eq(productoFinanciero.id, tx.producto_financiero_id))
           .run();

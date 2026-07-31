@@ -29,6 +29,8 @@ export default function PresupuestoScreen() {
     categorias,
     generarPresupuestoDesdeMontos,
     cargarCategorias,
+    frecuencia,
+    actualizarFrecuencia,
   } = usePresupuestoViewModel();
 
   const [metodo,            setMetodo]           = useState<Metodo>('50-30-20');
@@ -46,9 +48,8 @@ export default function PresupuestoScreen() {
   const total = categorias.reduce((acc, cat: any) => acc + cat.monto_esperado, 0);
 
   const templateCats503020 = [
-    { nombre: t('budget.categories.needs'),      monto: 0 },
-    { nombre: t('budget.categories.wants'),      monto: 0 },
-    { nombre: t('budget.categories.savingsDebt'), monto: 0 },
+    { nombre: t('budget.categories.needs'), monto: 0 },
+    { nombre: t('budget.categories.wants'), monto: 0 },
   ];
 
   const metodoHints: Record<Metodo, string> = {
@@ -65,15 +66,20 @@ export default function PresupuestoScreen() {
     fija: true,
   };
 
-  // Categorías iniciales que se pasan al manager según la plantilla activa
+  // Categorías iniciales que se pasan al manager: si ya existe presupuesto
+  // (edición), siempre se usan las categorías reales guardadas, sin importar
+  // el método con el que se haya creado. Las categorías por defecto solo
+  // aplican la primera vez que se crea el presupuesto.
+  const categoriasRealesParaManager: CategoriaItem[] = categorias.map((c: any) => ({
+    nombre: c.nombre,
+    monto: c.monto_esperado,
+    clave: c.clave ?? undefined,
+    fija: c.clave === CLAVE_AHORROS,
+  }));
+
   const categoriasParaManager: CategoriaItem[] =
-    metodo === 'personalizado'
-      ? categorias.map((c: any) => ({
-          nombre: c.nombre,
-          monto: c.monto_esperado,
-          clave: c.clave ?? undefined,
-          fija: c.clave === CLAVE_AHORROS,
-        }))
+    tienePresupuesto || metodo === 'personalizado'
+      ? categoriasRealesParaManager
       : [...templateCats503020, ahorrosManagerItem];
 
   return (
@@ -147,9 +153,13 @@ export default function PresupuestoScreen() {
       <CustomBudgetManager
         visible={showCustomManager}
         categoriasIniciales={categoriasParaManager}
+        frecuenciaInicial={frecuencia}
         onClose={() => setShowCustomManager(false)}
-        onConfirm={async (cats) => {
+        onConfirm={async (cats, nuevaFrecuencia) => {
           await generarPresupuestoDesdeMontos(cats);
+          if (nuevaFrecuencia !== frecuencia) {
+            await actualizarFrecuencia(nuevaFrecuencia);
+          }
           setShowCustomManager(false);
         }}
       />

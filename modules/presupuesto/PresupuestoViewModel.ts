@@ -1,4 +1,9 @@
 import { useEffect, useState } from "react";
+import {
+  getFrecuenciaPresupuesto,
+  setFrecuenciaPresupuesto,
+} from "@/modules/presupuesto/data/presupuesto-config";
+import type { FrecuenciaPresupuesto } from "@/modules/presupuesto/periodo";
 import { actualizarMontoReal, CLAVE_AHORROS, PresupuestoRepository } from "./PresupuestoRepository";
 import { presupuestoEvents } from "./presupuestoEvents";
 
@@ -6,6 +11,7 @@ type CategoriaInput = { nombre: string; monto: number; clave?: string | null };
 
 export const usePresupuestoViewModel = () => {
   const [categorias, setCategorias] = useState<any[]>([]);
+  const [frecuencia, setFrecuencia] = useState<FrecuenciaPresupuesto>(() => getFrecuenciaPresupuesto());
 
   useEffect(() => {
     cargarCategorias();
@@ -14,6 +20,15 @@ export const usePresupuestoViewModel = () => {
   const cargarCategorias = async () => {
     const data = await PresupuestoRepository.getCategorias();
     setCategorias(data);
+  };
+
+  /** HU: cambia la frecuencia del presupuesto (mensual/quincenal) y recarga
+   *  las categorías, que se recalculan automáticamente sobre el nuevo rango. */
+  const actualizarFrecuencia = async (nueva: FrecuenciaPresupuesto) => {
+    setFrecuenciaPresupuesto(nueva);
+    setFrecuencia(nueva);
+    await cargarCategorias();
+    presupuestoEvents.emit();
   };
 
   const agregarGasto = async (categoriaId: number, monto: number) => {
@@ -64,5 +79,7 @@ export const usePresupuestoViewModel = () => {
     generarPresupuestoDesdeMontos,
     agregarGasto,
     cargarCategorias,
+    frecuencia,
+    actualizarFrecuencia,
   };
 };

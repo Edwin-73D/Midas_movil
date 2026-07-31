@@ -18,6 +18,8 @@ import { useTranslation } from 'react-i18next';
 
 import { type MidasPalette } from '@/constants/theme';
 import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
+import { CLAVE_LIBRE, getAdvertenciaCuenta, type AdvertenciaCuenta } from '@/modules/productos/data/producto.service';
+import { AdvertenciaCuentaModal } from '@/modules/productos/ui/components/AdvertenciaCuentaModal';
 
 type TransactionType = 'expense' | 'income' | 'saving';
 
@@ -36,7 +38,7 @@ export interface NewTransaction {
 }
 
 export type MetaPickerItem = { id: number; nombre: string };
-export type ProductoPickerItem = { id: number; nombre: string };
+export type ProductoPickerItem = { id: number; nombre: string; montoNeto: number; tipo: 'asset' | 'debt'; clave?: string | null };
 export type PresupuestoCategoriaItem = { ID: number; nombre: string };
 
 export interface InitialTransactionData {
@@ -45,12 +47,13 @@ export interface InitialTransactionData {
   category: number | null;
   description: string;
   metaId?: number;
+  productoFinancieroId?: number;
 }
 
 interface Props {
   visible: boolean;
   onClose: () => void;
-  onSubmit: (tx: NewTransaction) => void;
+  onSubmit: (tx: NewTransaction) => void | Promise<void>;
   metas: MetaPickerItem[];
   productos?: ProductoPickerItem[];
   presupuestoCategorias?: PresupuestoCategoriaItem[];
@@ -96,6 +99,9 @@ export function AddTransactionModal({
   const [recurrente,         setRecurrente]         = useState(false);
   const [frecuencia,         setFrecuencia]         = useState<Frecuencia>('mensual');
   const [diaEjecucion,       setDiaEjecucion]       = useState<number | null>(null);
+  const [advertencia,        setAdvertencia]        = useState<AdvertenciaCuenta>(null);
+
+  const defaultProductoId = productos.find((p) => p.clave === CLAVE_LIBRE)?.id ?? null;
 
   useEffect(() => {
     if (visible && initialData) {
@@ -103,9 +109,17 @@ export function AddTransactionModal({
       setAmount(initialData.amount);
       setCategory(initialData.category);
       setSelectedMetaId(initialData.metaId ?? null);
+      setSelectedProductoId(initialData.productoFinancieroId ?? null);
       setDescription(initialData.description);
     }
   }, [visible, initialData]);
+
+  // Al abrir el modal para una transacción nueva, preseleccionar "Libre" por defecto.
+  useEffect(() => {
+    if (visible && !isEditing) {
+      setSelectedProductoId(defaultProductoId);
+    }
+  }, [visible, isEditing, defaultProductoId]);
 
   const amountValue = parseFloat(amount);
   const isValid =
@@ -118,26 +132,61 @@ export function AddTransactionModal({
     setType(next);
     setCategory(null);
     if (next !== 'saving') {
-      setSelectedProductoId(null);
       setSelectedMetaId(null);
     }
   }
 
-  function handleSubmit() {
+  async function handleSubmit(opts?: { skipAdvertencia?: boolean }) {
     if (!isValid) return;
+
+    if (type === 'expense' && selectedProductoId != null) {
+      const producto = productos.find((p) => p.id === selectedProductoId);
+      if (producto?.tipo === 'asset') {
+        const editingSameProducto =
+          isEditing && initialData?.productoFinancieroId === selectedProductoId;
+        const saldoDisponible = editingSameProducto
+          ? producto.montoNeto + (parseFloat(initialData!.amount) || 0)
+          : producto.montoNeto;
+        if (amountValue > saldoDisponible) {
+          if (producto.clave === CLAVE_LIBRE) {
+            Alert.alert(t('transaction.libreInsufficientTitle'), t('transaction.libreInsufficientMessage'));
+          } else {
+            Alert.alert(t('transaction.insufficientFundsTitle'), t('transaction.insufficientFundsMessage'));
+          }
+          return;
+        }
+      }
+
+      if (!opts?.skipAdvertencia) {
+        const adv = getAdvertenciaCuenta(selectedProductoId);
+        if (adv) {
+          setAdvertencia(adv);
+          return;
+        }
+      }
+    }
+
     try {
-      onSubmit({
+      await onSubmit({
         type,
         amount: isNaN(amountValue) ? 0 : amountValue,
         category: type === 'expense' ? category : null,
         description: type === 'saving' ? '' : description,
         metaId: type === 'saving' ? selectedMetaId ?? undefined : undefined,
-        productoFinancieroId: type === 'saving' ? selectedProductoId ?? undefined : undefined,
+        productoFinancieroId: selectedProductoId ?? undefined,
         recurrente: recurrente || undefined,
         frecuencia: recurrente ? frecuencia : undefined,
         diaEjecucion: recurrente && diaEjecucion != null ? diaEjecucion : undefined,
       });
     } catch (e) {
+      if (e instanceof Error && e.message === 'LIBRE_SIN_FONDOS') {
+        Alert.alert(t('transaction.libreInsufficientTitle'), t('transaction.libreInsufficientMessage'));
+        return;
+      }
+      if (e instanceof Error && e.message === 'INSUFFICIENT_FUNDS') {
+        Alert.alert(t('transaction.insufficientFundsTitle'), t('transaction.insufficientFundsMessage'));
+        return;
+      }
       Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo guardar');
       return;
     }
@@ -155,6 +204,7 @@ export function AddTransactionModal({
     setRecurrente(false);
     setFrecuencia('mensual');
     setDiaEjecucion(null);
+    setAdvertencia(null);
   }
 
   function handleClose() {
@@ -278,6 +328,70 @@ export function AddTransactionModal({
               </>
             )}
 
+            {/* ── Gasto: producto financiero opcional ───────────────────── */}
+            {type === 'expense' && productos.length > 0 && (
+              <>
+                <Text style={styles.label}>{t('transaction.productOptional')}</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.metaScroll}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {productos.map((p) => {
+                    const selected = selectedProductoId === p.id;
+                    return (
+                      <TouchableOpacity
+                        key={p.id}
+                        style={[
+                          styles.metaChip,
+                          selected && { backgroundColor: colors.gold, borderColor: colors.gold },
+                        ]}
+                        onPress={() => setSelectedProductoId(p.id)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>
+                          {p.nombre}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </>
+            )}
+
+            {/* ── Ingreso: producto financiero opcional ─────────────────── */}
+            {type === 'income' && productos.length > 0 && (
+              <>
+                <Text style={styles.label}>{t('transaction.productOptional')}</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.metaScroll}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {productos.map((p) => {
+                    const selected = selectedProductoId === p.id;
+                    return (
+                      <TouchableOpacity
+                        key={p.id}
+                        style={[
+                          styles.metaChip,
+                          selected && { backgroundColor: colors.gold, borderColor: colors.gold },
+                        ]}
+                        onPress={() => setSelectedProductoId(p.id)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>
+                          {p.nombre}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </>
+            )}
+
             {/* ── Ahorro: producto + meta ───────────────────────────────── */}
             {type === 'saving' && (
               <>
@@ -370,7 +484,7 @@ export function AddTransactionModal({
                   style={styles.descInput}
                   value={description}
                   onChangeText={setDescription}
-                  placeholder={t('transaction.placeholder')}
+                  placeholder={type === 'income' ? t('transaction.placeholderIncome') : t('transaction.placeholder')}
                   placeholderTextColor={colors.textSecondary}
                   returnKeyType="done"
                   maxLength={120}
@@ -468,7 +582,7 @@ export function AddTransactionModal({
 
             <TouchableOpacity
               style={[styles.submitButton, !isValid && styles.submitButtonDisabled]}
-              onPress={handleSubmit}
+              onPress={() => handleSubmit()}
               activeOpacity={0.85}
               disabled={!isValid}
             >
@@ -479,6 +593,17 @@ export function AddTransactionModal({
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+
+      <AdvertenciaCuentaModal
+        visible={advertencia != null}
+        etiqueta={advertencia?.etiqueta ?? null}
+        metas={advertencia?.metas ?? []}
+        onCancel={() => setAdvertencia(null)}
+        onConfirm={() => {
+          setAdvertencia(null);
+          handleSubmit({ skipAdvertencia: true });
+        }}
+      />
     </Modal>
   );
 }

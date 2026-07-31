@@ -1,6 +1,6 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -20,6 +20,8 @@ import { FacturaSingleModal } from '@/modules/facturas/components/FacturaSingleM
 import type { FacturaAnalizada } from '@/modules/facturas/domain/factura.types';
 import { analizarFactura } from '@/modules/facturas/services/analizar-factura.service';
 import { usePresupuestoViewModel } from '@/modules/presupuesto/PresupuestoViewModel';
+import type { ProductoPickerItem } from '@/modules/home/components/AddTransactionModal';
+import { getProductosSync } from '@/modules/productos/data/producto.service';
 
 type FlowState = 'camera' | 'loading' | 'error' | 'decision' | 'single' | 'multiple';
 
@@ -34,7 +36,16 @@ export default function FacturaScannerScreen() {
   const [factura, setFactura] = useState<FacturaAnalizada | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [lastBase64, setLastBase64] = useState<string | null>(null);
+  const [productosPicker, setProductosPicker] = useState<ProductoPickerItem[]>([]);
   const { agregarGasto, categorias } = usePresupuestoViewModel();
+
+  useEffect(() => {
+    setProductosPicker(
+      getProductosSync()
+        .filter((p) => p.id != null)
+        .map((p) => ({ id: p.id!, nombre: p.nombre ?? 'Producto', montoNeto: p.montoNeto ?? 0, tipo: p.tipo, clave: p.clave ?? null }))
+    );
+  }, []);
 
   async function analizarImagen(base64: string) {
     setFlowState('loading');
@@ -184,6 +195,7 @@ export default function FacturaScannerScreen() {
             visible={flowState === 'single'}
             factura={factura}
             categorias={(categorias as { ID: number; nombre: string; clave?: string | null }[]).filter(c => c.clave !== 'ahorros')}
+            productos={productosPicker}
             onClose={() => setFlowState('camera')}
             onGuardar={handleGuardar}
             agregarGasto={agregarGasto}
@@ -192,6 +204,7 @@ export default function FacturaScannerScreen() {
             visible={flowState === 'multiple'}
             factura={factura}
             categorias={(categorias as { ID: number; nombre: string; clave?: string | null }[]).filter(c => c.clave !== 'ahorros')}
+            productos={productosPicker}
             onClose={() => setFlowState('camera')}
             onGuardar={handleGuardar}
             agregarGasto={agregarGasto}

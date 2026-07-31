@@ -4,8 +4,9 @@ import { Alert } from 'react-native';
 import { editarTransaccion } from '@/modules/finanzas/editar-transaccion.service';
 import { eliminarTransaccion } from '@/modules/finanzas/eliminar-transaccion.service';
 import { getMetasSync } from '@/modules/metas/data/meta.service';
+import { getProductosSync } from '@/modules/productos/data/producto.service';
 import { usePresupuestoViewModel } from '@/modules/presupuesto/PresupuestoViewModel';
-import type { InitialTransactionData, MetaPickerItem, NewTransaction } from '@/modules/home/components/AddTransactionModal';
+import type { InitialTransactionData, MetaPickerItem, NewTransaction, ProductoPickerItem } from '@/modules/home/components/AddTransactionModal';
 import type { TransaccionRow } from '@/modules/transacciones/TransaccionRepository';
 
 export function buildInitialData(tx: TransaccionRow, _categorias: any[]): InitialTransactionData {
@@ -15,12 +16,14 @@ export function buildInitialData(tx: TransaccionRow, _categorias: any[]): Initia
     category: tx.tipo === 'expense' && tx.categoria_id != null ? tx.categoria_id : null,
     description: tx.descripcion ?? tx.nombre ?? '',
     metaId: tx.meta_id ?? undefined,
+    productoFinancieroId: tx.producto_financiero_id ?? undefined,
   };
 }
 
 export function useTransactionActions() {
   const [editTx, setEditTx] = useState<TransaccionRow | null>(null);
   const [metasPicker, setMetasPicker] = useState<MetaPickerItem[]>([]);
+  const [productosPicker, setProductosPicker] = useState<ProductoPickerItem[]>([]);
   const { agregarGasto, categorias, cargarCategorias } = usePresupuestoViewModel();
 
   function handleEdit(tx: TransaccionRow) {
@@ -32,6 +35,11 @@ export function useTransactionActions() {
       getMetasSync()
         .filter((m) => m.id != null)
         .map((m) => ({ id: m.id!, nombre: m.nombre }))
+    );
+    setProductosPicker(
+      getProductosSync()
+        .filter((p) => p.id != null)
+        .map((p) => ({ id: p.id!, nombre: p.nombre ?? 'Producto', montoNeto: p.montoNeto ?? 0, tipo: p.tipo, clave: p.clave ?? null }))
     );
     setEditTx(tx);
   }
@@ -61,6 +69,7 @@ export function useTransactionActions() {
         category: newTx.category,
         description: newTx.description,
         metaId: newTx.metaId,
+        productoFinancieroId: newTx.productoFinancieroId,
       },
       {
         resolveCategoriaId: (cat) => cat,
@@ -74,6 +83,7 @@ export function useTransactionActions() {
     editTx,
     setEditTx,
     metasPicker,
+    productosPicker,
     categorias,
     cargarCategorias,
     handleEdit,

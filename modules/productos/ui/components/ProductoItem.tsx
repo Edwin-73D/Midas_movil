@@ -13,6 +13,7 @@ import {
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { type MidasPalette } from '@/constants/theme';
 import type { Producto } from '@/modules/productos/domain/producto.model';
+import { CLAVE_LIBRE } from '@/modules/productos/data/producto.service';
 import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -62,6 +63,7 @@ export default function ProductoItem({ producto, onEdit, onDelete, onPress }: Pr
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { icon, bg, color } = getIconConfig(producto.tipo, producto.entidadFinanciera ?? '', colors.gold);
+  const protegido = producto.clave === CLAVE_LIBRE;
 
   // HU-05: menú contextual de tres puntos (editar / eliminar) anclado al botón.
   const triggerRef = useRef<View>(null);
@@ -115,38 +117,46 @@ export default function ProductoItem({ producto, onEdit, onDelete, onPress }: Pr
         </View>
       </View>
 
-      {/* Botón de tres puntos */}
-      <TouchableOpacity
-        ref={triggerRef}
-        onPress={openMenu}
-        hitSlop={10}
-        style={styles.menuTrigger}
-        activeOpacity={0.7}
-      >
-        <IconSymbol name="ellipsis.vertical" size={20} color={colors.textSecondary} />
-      </TouchableOpacity>
+      {/* Botón de tres puntos — oculto para la cuenta fija "Libre" */}
+      {protegido ? (
+        <View style={styles.menuTrigger}>
+          <Text style={styles.lockBadge}>🔒</Text>
+        </View>
+      ) : (
+        <>
+          <TouchableOpacity
+            ref={triggerRef}
+            onPress={openMenu}
+            hitSlop={10}
+            style={styles.menuTrigger}
+            activeOpacity={0.7}
+          >
+            <IconSymbol name="ellipsis.vertical" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
 
-      {/* Menú desplegable */}
-      <Modal
-        visible={menuPos != null}
-        transparent
-        animationType="fade"
-        onRequestClose={closeMenu}
-        statusBarTranslucent
-      >
-        <Pressable style={styles.menuOverlay} onPress={closeMenu} />
-        {menuPos && (
-          <View style={[styles.menu, { top: menuPos.top, right: menuPos.right }]}>
-            <TouchableOpacity style={styles.menuOption} onPress={handleEdit} activeOpacity={0.7}>
-              <Text style={styles.menuOptionText}>Editar</Text>
-            </TouchableOpacity>
-            <View style={styles.menuSeparator} />
-            <TouchableOpacity style={styles.menuOption} onPress={handleDelete} activeOpacity={0.7}>
-              <Text style={[styles.menuOptionText, styles.menuOptionDanger]}>Eliminar</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </Modal>
+          {/* Menú desplegable */}
+          <Modal
+            visible={menuPos != null}
+            transparent
+            animationType="fade"
+            onRequestClose={closeMenu}
+            statusBarTranslucent
+          >
+            <Pressable style={styles.menuOverlay} onPress={closeMenu} />
+            {menuPos && (
+              <View style={[styles.menu, { top: menuPos.top, right: menuPos.right }]}>
+                <TouchableOpacity style={styles.menuOption} onPress={handleEdit} activeOpacity={0.7}>
+                  <Text style={styles.menuOptionText}>Editar</Text>
+                </TouchableOpacity>
+                <View style={styles.menuSeparator} />
+                <TouchableOpacity style={styles.menuOption} onPress={handleDelete} activeOpacity={0.7}>
+                  <Text style={[styles.menuOptionText, styles.menuOptionDanger]}>Eliminar</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </Modal>
+        </>
+      )}
     </TouchableOpacity>
   );
 }
@@ -219,6 +229,9 @@ const makeStyles = (c: MidasPalette) =>
       height: 36,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    lockBadge: {
+      fontSize: 14,
     },
     menuOverlay: {
       ...StyleSheet.absoluteFillObject,

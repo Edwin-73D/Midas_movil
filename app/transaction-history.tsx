@@ -39,7 +39,7 @@ export default function TransactionHistoryScreen() {
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
 
   const {
-    editTx, setEditTx, metasPicker, categorias, cargarCategorias,
+    editTx, setEditTx, metasPicker, productosPicker, categorias, cargarCategorias,
     handleEdit: baseHandleEdit, handleDelete, handleEditSubmit, buildInitialData,
   } = useTransactionActions();
 
@@ -154,6 +154,7 @@ export default function TransactionHistoryScreen() {
       <AddTransactionModal
         visible={editTx !== null}
         metas={metasPicker}
+        productos={productosPicker}
         presupuestoCategorias={(categorias as any[]).filter((c) => c.clave !== 'ahorros')}
         isEditing
         initialData={editTx ? buildInitialData(editTx) : undefined}

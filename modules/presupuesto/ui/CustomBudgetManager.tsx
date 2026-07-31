@@ -15,6 +15,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { type MidasPalette } from '@/constants/theme';
+import type { FrecuenciaPresupuesto } from '@/modules/presupuesto/periodo';
 import { useTheme, useThemedStyles } from '@/modules/shared/theme/ThemeContext';
 
 export type CategoriaItem = {
@@ -28,24 +29,31 @@ export type CategoriaItem = {
 interface Props {
   visible: boolean;
   categoriasIniciales: CategoriaItem[];
+  frecuenciaInicial: FrecuenciaPresupuesto;
   onClose: () => void;
-  onConfirm: (cats: CategoriaItem[]) => void;
+  onConfirm: (cats: CategoriaItem[], frecuencia: FrecuenciaPresupuesto) => void;
 }
 
 function getDefaults(t: (key: string) => string): CategoriaItem[] {
   return [
-    { nombre: t('budget.categories.needs'),      monto: 0 },
-    { nombre: t('budget.categories.wants'),      monto: 0 },
-    { nombre: t('budget.categories.savingsDebt'), monto: 0 },
-    { nombre: t('budget.categories.savings'),    monto: 0, clave: 'ahorros', fija: true },
+    { nombre: t('budget.categories.needs'),   monto: 0 },
+    { nombre: t('budget.categories.wants'),   monto: 0 },
+    { nombre: t('budget.categories.savings'), monto: 0, clave: 'ahorros', fija: true },
   ];
 }
 
-export function CustomBudgetManager({ visible, categoriasIniciales, onClose, onConfirm }: Props) {
+export function CustomBudgetManager({
+  visible,
+  categoriasIniciales,
+  frecuenciaInicial,
+  onClose,
+  onConfirm,
+}: Props) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [cats, setCats] = useState<CategoriaItem[]>([]);
+  const [frecuencia, setFrecuencia] = useState<FrecuenciaPresupuesto>(frecuenciaInicial);
 
   useEffect(() => {
     if (visible) {
@@ -54,10 +62,13 @@ export function CustomBudgetManager({ visible, categoriasIniciales, onClose, onC
           ? categoriasIniciales.map((c) => ({ ...c }))
           : getDefaults(t)
       );
+      setFrecuencia(frecuenciaInicial);
     }
-  }, [visible, categoriasIniciales, t]);
+  }, [visible, categoriasIniciales, frecuenciaInicial, t]);
 
   const total = cats.reduce((s, c) => s + (parseFloat(String(c.monto)) || 0), 0);
+  const isValid =
+    cats.length > 0 && cats.every((c) => c.monto > 0 && (c.fija || c.nombre.trim().length > 0));
 
   function updateNombre(index: number, value: string) {
     setCats((prev) => prev.map((c, i) => (i === index ? { ...c, nombre: value } : c)));
@@ -77,11 +88,8 @@ export function CustomBudgetManager({ visible, categoriasIniciales, onClose, onC
   }
 
   function handleConfirm() {
-    // La categoría fija siempre se conserva, aunque su monto sea 0.
-    const valid = cats.filter((c) => c.fija || (c.nombre.trim() && c.monto > 0));
-    const tieneNoFija = valid.some((c) => !c.fija && c.monto > 0);
-    if (!tieneNoFija) return;
-    onConfirm(valid);
+    if (!isValid) return;
+    onConfirm(cats.map((c) => (c.fija ? c : { ...c, nombre: c.nombre.trim() })), frecuencia);
   }
 
   return (
@@ -107,6 +115,39 @@ export function CustomBudgetManager({ visible, categoriasIniciales, onClose, onC
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.scrollContent}
           >
+            {/* ── Frecuencia del presupuesto ─────────────────────────────── */}
+            <Text style={styles.sectionLabel}>{t('budget.frequencyLabel')}</Text>
+            <View style={styles.frecuenciaRow}>
+              <TouchableOpacity
+                style={[styles.frecuenciaBtn, frecuencia === 'mensual' && styles.frecuenciaBtnActive]}
+                onPress={() => setFrecuencia('mensual')}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.frecuenciaBtnText,
+                    frecuencia === 'mensual' && styles.frecuenciaBtnTextActive,
+                  ]}
+                >
+                  {t('budget.frequencyMonthly')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.frecuenciaBtn, frecuencia === 'quincenal' && styles.frecuenciaBtnActive]}
+                onPress={() => setFrecuencia('quincenal')}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.frecuenciaBtnText,
+                    frecuencia === 'quincenal' && styles.frecuenciaBtnTextActive,
+                  ]}
+                >
+                  {t('budget.frequencyBiweekly')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             {/* ── Total ──────────────────────────────────────────────────── */}
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>{t('budget.totalBudget').toUpperCase()}</Text>
@@ -173,11 +214,16 @@ export function CustomBudgetManager({ visible, categoriasIniciales, onClose, onC
             </TouchableOpacity>
 
             {/* ── Confirmar ─────────────────────────────────────────────── */}
+            {!isValid && (
+              <Text style={styles.validationHint}>
+                {t('budget.allAmountsRequired', 'Todas las categorías deben tener un monto mayor a $0')}
+              </Text>
+            )}
             <TouchableOpacity
-              style={[styles.confirmButton, total === 0 && styles.confirmButtonDisabled]}
+              style={[styles.confirmButton, !isValid && styles.confirmButtonDisabled]}
               onPress={handleConfirm}
               activeOpacity={0.85}
-              disabled={total === 0}
+              disabled={!isValid}
             >
               <Text style={styles.confirmLabel}>{t('budget.confirm')}</Text>
             </TouchableOpacity>
@@ -225,6 +271,37 @@ const makeStyles = (c: MidasPalette) =>
       color: c.textSecondary,
       fontSize: 28,
       lineHeight: 28,
+    },
+    sectionLabel: {
+      color: c.textSecondary,
+      fontSize: 11,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    frecuenciaRow: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    frecuenciaBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 10,
+      backgroundColor: c.inputBackground,
+      alignItems: 'center',
+    },
+    frecuenciaBtnActive: {
+      backgroundColor: c.gold + '33',
+      borderWidth: 1,
+      borderColor: c.gold,
+    },
+    frecuenciaBtnText: {
+      color: c.textSecondary,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    frecuenciaBtnTextActive: {
+      color: c.gold,
     },
     totalRow: {
       flexDirection: 'row',
@@ -334,6 +411,11 @@ const makeStyles = (c: MidasPalette) =>
       color: c.gold,
       fontSize: 14,
       fontWeight: '600',
+    },
+    validationHint: {
+      color: c.danger,
+      fontSize: 12,
+      textAlign: 'center',
     },
     confirmButton: {
       backgroundColor: c.gold,

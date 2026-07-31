@@ -1,0 +1,1 @@
+ALTER TABLE `Producto_financiero` ADD `etiqueta` text;

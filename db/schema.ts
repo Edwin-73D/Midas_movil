@@ -73,6 +73,14 @@ export const productoFinanciero = sqliteTable('Producto_financiero', {
     onUpdate: 'cascade',
   }),
   usuarioId: integer('usuario_id'),
+  // HU: clave estable de la cuenta fija "Libre" (dinero no trackeado); null en el resto.
+  clave: text('clave'),
+  // HU: propósito declarado de la cuenta ('ahorro' | 'inversion'); null = sin etiquetar.
+  etiqueta: text('etiqueta'),
+  // HU: frecuencia de capitalización del interés fijo ('mensual'|'trimestral'|'semestral'|'anual'); null = no participa.
+  frecuenciaCapitalizacion: text('frecuencia_capitalizacion'),
+  // HU: última fecha (YYYY-MM-DD) hasta la que se aplicó capitalización de interés; null = no participa.
+  fechaUltimaCapitalizacion: text('fecha_ultima_capitalizacion'),
 });
 
 // De incoming: relaciones Drizzle

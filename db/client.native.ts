@@ -183,6 +183,20 @@ try { expo.execSync('ALTER TABLE transaccion_recurrente ADD COLUMN dia_ejecucion
 // HU-01: clave estable para la categoría fija de ahorros
 try { expo.execSync('ALTER TABLE Categoria ADD COLUMN clave TEXT'); } catch {}
 
+// HU: clave estable para la cuenta fija "Libre" (dinero no trackeado)
+try { expo.execSync('ALTER TABLE Producto_financiero ADD COLUMN clave TEXT'); } catch {}
+
+// HU: etiqueta de propósito de la cuenta ('ahorro' | 'inversion')
+try { expo.execSync('ALTER TABLE Producto_financiero ADD COLUMN etiqueta TEXT'); } catch {}
+
+// HU: capitalización de interés fijo — frecuencia configurada por producto
+try { expo.execSync('ALTER TABLE Producto_financiero ADD COLUMN frecuencia_capitalizacion TEXT'); } catch {}
+// HU: última fecha de capitalización aplicada (YYYY-MM-DD)
+try { expo.execSync('ALTER TABLE Producto_financiero ADD COLUMN fecha_ultima_capitalizacion TEXT'); } catch {}
+
+// HU: frecuencia del presupuesto ('mensual' | 'quincenal'), default 'mensual'
+try { expo.execSync("ALTER TABLE usuario ADD COLUMN frecuencia_presupuesto TEXT DEFAULT 'mensual'"); } catch {}
+
 // HU-02: columna usuario_id en tablas financieras
 try { expo.execSync('ALTER TABLE transaccion ADD COLUMN usuario_id INTEGER'); } catch {}
 try { expo.execSync('ALTER TABLE Categoria ADD COLUMN usuario_id INTEGER'); } catch {}

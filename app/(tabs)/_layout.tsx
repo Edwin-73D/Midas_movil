@@ -1,3 +1,4 @@
+import { procesarCapitalizacionIntereses } from '@/modules/finanzas/capitalizacion-interes.service';
 import { registrarTransaccion } from '@/modules/finanzas/registrar-transaccion.service';
 import {
   crearPlantillaRecurrente,
@@ -5,6 +6,7 @@ import {
 } from '@/modules/finanzas/transaccion-recurrente.service';
 import { getMetasSync } from '@/modules/metas/data/meta.service';
 import { getProductosSync } from '@/modules/productos/data/producto.service';
+import { presupuestoEvents } from '@/modules/presupuesto/presupuestoEvents';
 import { usePresupuestoViewModel } from '@/modules/presupuesto/PresupuestoViewModel';
 import { Tabs, router, useSegments } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
@@ -43,11 +45,13 @@ export default function TabLayout() {
   const [fabOpen, setFabOpen] = useState(false);
   const menuAnim = useRef(new Animated.Value(0)).current;
 
-  const { agregarGasto, categorias } = usePresupuestoViewModel();
+  const { agregarGasto, categorias, cargarCategorias } = usePresupuestoViewModel();
 
   // Al montar el layout (cada apertura de la app), genera las transacciones vencidas
   useEffect(() => {
     procesarRecurrentes({ onPresupuestoGasto: agregarGasto });
+    procesarCapitalizacionIntereses();
+    return presupuestoEvents.subscribe(cargarCategorias);
   }, []);
 
   function toggleFab() {
@@ -71,7 +75,7 @@ export default function TabLayout() {
     setProductosPicker(
       getProductosSync()
         .filter((p) => p.id != null)
-        .map((p) => ({ id: p.id!, nombre: p.nombre ?? 'Producto' }))
+        .map((p) => ({ id: p.id!, nombre: p.nombre ?? 'Producto', montoNeto: p.montoNeto ?? 0, tipo: p.tipo, clave: p.clave ?? null }))
     );
     setModalVisible(true);
   }
@@ -240,7 +244,7 @@ export default function TabLayout() {
         visible={modalVisible}
         metas={metasPicker}
         productos={productosPicker}
-        presupuestoCategorias={(categorias as PresupuestoCategoriaItem[]).filter(c => (c as any).clave !== 'ahorros')}
+        presupuestoCategorias={(categorias as PresupuestoCategoriaItem[]).filter(c => !['ahorros', 'intereses'].includes((c as any).clave))}
         onCreateProducto={openCreateProducto}
         onGoToBudget={() => { setModalVisible(false); router.push('/presupuesto'); }}
         onClose={() => setModalVisible(false)}
